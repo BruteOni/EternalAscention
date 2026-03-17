@@ -798,7 +798,7 @@ function unlockNextNode(path, index=0) {
     
     if (path === 'offense' || path === 'defense') {
         player.skillPoints--;
-        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury'];
+        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'rawPower', 'force', 'revival', 'vampire'];
         let picked = attrs[Math.floor(Math.random() * attrs.length)];
         
         if(path === 'offense') {
@@ -807,7 +807,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(4)) player.unlockedSkills.push(4); }
             else if(index === 14) { if(!player.unlockedSkills.includes(5)) player.unlockedSkills.push(5); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-red-400');
                 storeRolledEnhancement(path, index);
             }
@@ -817,7 +817,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(7)) player.unlockedSkills.push(7); }
             else if(index === 14) { if(!player.unlockedSkills.includes(8)) player.unlockedSkills.push(8); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-blue-400');
                 storeRolledEnhancement(path, index);
             }
@@ -825,7 +825,7 @@ function unlockNextNode(path, index=0) {
     }
     else if (path === 'fire' || path === 'ice') {
         player.skillPoints--;
-        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury'];
+        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'rawPower', 'force', 'revival', 'vampire'];
         let picked = attrs[Math.floor(Math.random() * attrs.length)];
         
         if(path === 'fire') {
@@ -834,7 +834,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(4)) player.unlockedSkills.push(4); }
             else if(index === 14) { if(!player.unlockedSkills.includes(5)) player.unlockedSkills.push(5); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-orange-400');
                 storeRolledEnhancement(path, index);
             }
@@ -844,7 +844,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(7)) player.unlockedSkills.push(7); }
             else if(index === 14) { if(!player.unlockedSkills.includes(8)) player.unlockedSkills.push(8); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-cyan-400');
                 storeRolledEnhancement(path, index);
             }
@@ -852,7 +852,7 @@ function unlockNextNode(path, index=0) {
     }
     else if (path === 'holy' || path === 'guardian') {
         player.skillPoints--;
-        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury'];
+        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'rawPower', 'force', 'revival', 'vampire'];
         let picked = attrs[Math.floor(Math.random() * attrs.length)];
         if(path === 'holy') {
             player.treeProgressHoly = (player.treeProgressHoly||0) + 1;
@@ -860,7 +860,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(4)) player.unlockedSkills.push(4); }
             else if(index === 14) { if(!player.unlockedSkills.includes(5)) player.unlockedSkills.push(5); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-yellow-400');
                 storeRolledEnhancement(path, index);
             }
@@ -870,7 +870,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(7)) player.unlockedSkills.push(7); }
             else if(index === 14) { if(!player.unlockedSkills.includes(8)) player.unlockedSkills.push(8); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-emerald-400');
                 storeRolledEnhancement(path, index);
             }
@@ -878,7 +878,7 @@ function unlockNextNode(path, index=0) {
     }
     else if (path === 'shadow' || path === 'venom') {
         player.skillPoints--;
-        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury'];
+        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'rawPower', 'force', 'revival', 'vampire'];
         let picked = attrs[Math.floor(Math.random() * attrs.length)];
         if(path === 'shadow') {
             player.treeProgressShadow = (player.treeProgressShadow||0) + 1;
@@ -886,7 +886,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(4)) player.unlockedSkills.push(4); }
             else if(index === 14) { if(!player.unlockedSkills.includes(5)) player.unlockedSkills.push(5); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-violet-400');
                 storeRolledEnhancement(path, index);
             }
@@ -898,12 +898,12 @@ function unlockNextNode(path, index=0) {
                 if(player.data.skills[8] && !player.unlockedSkills.includes(8)) {
                     player.unlockedSkills.push(8);
                 } else {
-                    globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                    globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                     showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-lime-400');
                     storeRolledEnhancement(path, index);
                 }
             } else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-lime-400');
                 storeRolledEnhancement(path, index);
             }
@@ -911,7 +911,7 @@ function unlockNextNode(path, index=0) {
     }
     else if (path === 'divine' || path === 'plague') {
         player.skillPoints--;
-        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'happiness'];
+        let attrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'happiness', 'rawPower', 'force', 'revival', 'vampire'];
         let picked = attrs[Math.floor(Math.random() * attrs.length)];
         if(path === 'divine') {
             player.treeProgressDivine = (player.treeProgressDivine||0) + 1;
@@ -945,7 +945,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(4)) player.unlockedSkills.push(4); }
             else if(index === 14) { if(!player.unlockedSkills.includes(5)) player.unlockedSkills.push(5); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-sky-400');
                 storeRolledEnhancement(path, index);
             }
@@ -955,7 +955,7 @@ function unlockNextNode(path, index=0) {
             else if(index === 9) { if(!player.unlockedSkills.includes(7)) player.unlockedSkills.push(7); }
             else if(index === 14) { if(!player.unlockedSkills.includes(8)) player.unlockedSkills.push(8); }
             else {
-                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 1) + 1;
+                globalProgression.attributes[picked] = (globalProgression.attributes[picked] || 0) + 1;
                 showFloatText('hub-avatar', `+1 ${picked.toUpperCase()}`, 'text-amber-400');
                 storeRolledEnhancement(path, index);
             }
@@ -3765,6 +3765,9 @@ function usePlayerSkill(slotIndex) {
         enemies.forEach(e => { e.currentHp = e.maxHp; });
         updateCombatUI(); renderSkills();
         setTimeout(() => startPlayerTurn(), 500);
+    } else if (isPlayerTurn && enemies.some(e => e.currentHp > 0)) {
+        // Extra turn triggered — give player another action immediately
+        setTimeout(() => startPlayerTurn(), 600);
     } else {
         let enemyDelay = currentMode === 'quest' ? 200 : 800;
         if (enemies.every(e => e.currentHp <= 0)) setTimeout(() => { if(combatActive) endBattle(true); }, 1000); else setTimeout(() => executeEnemyTurns(0), enemyDelay);
