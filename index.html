@@ -641,88 +641,58 @@
     </div>
 
     <!-- SKILL TREE -->
-    <div id="screen-skilltree" class="screen py-8">
-        <div class="w-full max-w-xl px-4 flex flex-col h-full">
-            <button onclick="showHub()" class="btn-back self-start mb-6 text-purple-400 px-4 py-2 rounded-lg font-bold flex items-center gap-2"><span>⬅️</span> Town</button>
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-3xl font-bold text-purple-400">SKILL TREE</h2>
-                <div class="bg-gray-800 px-3 py-1 rounded-full border border-purple-500 font-bold text-purple-300 shadow-md">SP: <span id="tree-sp">0</span></div>
+    <div id="screen-skilltree" class="screen py-4">
+        <div class="w-full max-w-xl px-3 flex flex-col">
+            <div class="flex justify-between items-center mb-3">
+                <button onclick="showHub()" class="btn-back text-purple-400 px-3 py-2 rounded-lg font-bold flex items-center gap-2 text-sm"><span>⬅️</span> Town</button>
+                <h2 class="text-2xl font-bold text-purple-400">SKILL TREE</h2>
+                <div class="bg-gray-800 px-3 py-1 rounded-full border border-purple-500 font-bold text-purple-300 shadow-md text-sm">SP: <span id="tree-sp">0</span></div>
             </div>
-            <p class="text-xs font-bold text-yellow-400 text-center mb-3"><strong>REFRESH PAGE IF SKILL TREE IS UNAVAILABLE</strong></p>
             
             <!-- Warrior Tree -->
-            <div id="tree-warrior" class="w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <p class="text-xs text-gray-400">Choose a path! Grants random Enhancements.</p>
-                    <div class="text-sm font-bold text-white bg-gray-800 px-2 py-1 rounded shadow-inner border border-gray-700">Prog: <span id="tree-progress" class="text-purple-400">0</span></div>
+            <div id="tree-warrior" class="w-full hidden">
+                <div class="tree-class-header flex justify-between items-center mb-2 bg-gray-800 rounded-xl px-3 py-2 border border-gray-700">
+                    <p class="text-xs text-gray-400">Unlock nodes to gain enhancements & skills. Progress shows when a node is ready.</p>
                 </div>
-                <div id="warrior-tree-header" class="flex gap-2 w-full mb-1"></div>
-                <div class="flex gap-2 w-full h-96 overflow-y-auto p-2 bg-gray-900 border border-gray-700 rounded-xl shadow-inner mb-4" id="warrior-tree-container">
-                    <!-- Javascript Populated Columns -->
-                </div>
+                <!-- dual-path-container inserted by JS -->
             </div>
             
             <!-- Mage Tree -->
             <div id="tree-mage" class="hidden w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <p class="text-xs text-gray-400">Choose a path! Grants random Enhancements.</p>
-                    <div class="text-sm font-bold text-white bg-gray-800 px-2 py-1 rounded shadow-inner border border-gray-700">Prog: <span id="tree-progress-mage" class="text-purple-400">0</span></div>
-                </div>
-                <div id="mage-tree-header" class="flex gap-2 w-full mb-1"></div>
-                <div class="flex gap-2 w-full h-96 overflow-y-auto p-2 bg-gray-900 border border-gray-700 rounded-xl shadow-inner mb-4" id="mage-tree-container">
-                    <!-- Javascript Populated Columns -->
+                <div class="tree-class-header flex justify-between items-center mb-2 bg-gray-800 rounded-xl px-3 py-2 border border-gray-700">
+                    <p class="text-xs text-gray-400">Unlock nodes to gain enhancements & skills. Glowing border = next node.</p>
                 </div>
             </div>
 
             <!-- Paladin Tree -->
             <div id="tree-paladin" class="hidden w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <p class="text-xs text-gray-400">Choose a path! Grants random Enhancements.</p>
-                    <div class="text-sm font-bold text-white bg-gray-800 px-2 py-1 rounded shadow-inner border border-gray-700">Prog: <span id="tree-progress-paladin" class="text-purple-400">0</span></div>
-                </div>
-                <div id="paladin-tree-header" class="flex gap-2 w-full mb-1"></div>
-                <div class="flex gap-2 w-full h-96 overflow-y-auto p-2 bg-gray-900 border border-gray-700 rounded-xl shadow-inner mb-4" id="paladin-tree-container">
-                    <!-- Javascript Populated Columns -->
+                <div class="tree-class-header flex justify-between items-center mb-2 bg-gray-800 rounded-xl px-3 py-2 border border-gray-700">
+                    <p class="text-xs text-gray-400">Unlock nodes to gain enhancements & skills. Glowing border = next node.</p>
                 </div>
             </div>
 
             <!-- Ninja Tree -->
             <div id="tree-ninja" class="hidden w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <p class="text-xs text-gray-400">Choose a path! Grants random Enhancements.</p>
-                    <div class="text-sm font-bold text-white bg-gray-800 px-2 py-1 rounded shadow-inner border border-gray-700">Prog: <span id="tree-progress-ninja" class="text-purple-400">0</span></div>
-                </div>
-                <div id="ninja-tree-header" class="flex gap-2 w-full mb-1"></div>
-                <div class="flex gap-2 w-full h-96 overflow-y-auto p-2 bg-gray-900 border border-gray-700 rounded-xl shadow-inner mb-4" id="ninja-tree-container">
-                    <!-- Javascript Populated Columns -->
+                <div class="tree-class-header flex justify-between items-center mb-2 bg-gray-800 rounded-xl px-3 py-2 border border-gray-700">
+                    <p class="text-xs text-gray-400">Unlock nodes to gain enhancements & skills. Glowing border = next node.</p>
                 </div>
             </div>
 
             <!-- Cleric Tree -->
             <div id="tree-cleric" class="hidden w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <p class="text-xs text-gray-400">Choose a path! Grants random Enhancements.</p>
-                    <div class="text-sm font-bold text-white bg-gray-800 px-2 py-1 rounded shadow-inner border border-gray-700">Prog: <span id="tree-progress-cleric" class="text-purple-400">0</span></div>
-                </div>
-                <div id="cleric-tree-header" class="flex gap-2 w-full mb-1"></div>
-                <div class="flex gap-2 w-full h-96 overflow-y-auto p-2 bg-gray-900 border border-gray-700 rounded-xl shadow-inner mb-4" id="cleric-tree-container">
-                    <!-- Javascript Populated Columns -->
+                <div class="tree-class-header flex justify-between items-center mb-2 bg-gray-800 rounded-xl px-3 py-2 border border-gray-700">
+                    <p class="text-xs text-gray-400">Unlock nodes to gain enhancements & skills. Glowing border = next node.</p>
                 </div>
             </div>
 
             <!-- Archer Tree -->
             <div id="tree-archer" class="hidden w-full">
-                <div class="flex justify-between items-center mb-2">
-                    <p class="text-xs text-gray-400">Choose a path! Grants random Enhancements.</p>
-                    <div class="text-sm font-bold text-white bg-gray-800 px-2 py-1 rounded shadow-inner border border-gray-700">Prog: <span id="tree-progress-archer" class="text-sky-400">0</span></div>
-                </div>
-                <div id="archer-tree-header" class="flex gap-2 w-full mb-1"></div>
-                <div class="flex gap-2 w-full h-96 overflow-y-auto p-2 bg-gray-900 border border-gray-700 rounded-xl shadow-inner mb-4" id="archer-tree-container">
-                    <!-- Javascript Populated Columns -->
+                <div class="tree-class-header flex justify-between items-center mb-2 bg-gray-800 rounded-xl px-3 py-2 border border-gray-700">
+                    <p class="text-xs text-gray-400">Unlock nodes to gain enhancements & skills. Glowing border = next node.</p>
                 </div>
             </div>
 
-            <div id="skill-tree-enhancements" class="w-full mt-4"></div>
+            <div id="skill-tree-enhancements" class="w-full mt-2"></div>
 
         </div>
     </div>
