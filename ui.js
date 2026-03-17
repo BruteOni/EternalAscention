@@ -2675,10 +2675,10 @@ function generateEnemies() {
     } else if ((currentMode === 'hunting' || currentMode === 'pillage' || currentMode === 'workshop' || currentMode === 'island_defense') && globalProgression.storyModeProgress[currentMode] >= 9) {
         isBossFight = true; count = 1;
     } else {
-        let countRoll = Math.random();
-        if(countRoll < 0.15) count = 4;
-        else if(countRoll < 0.35) count = 3;
-        else if(countRoll < 0.65) count = 2;
+        let countRoll = Math.random() * 115;
+        if (countRoll < 5) count = 4;
+        else if (countRoll < 25) count = 3;
+        else if (countRoll < 65) count = 2;
         else count = 1;
     }
 
