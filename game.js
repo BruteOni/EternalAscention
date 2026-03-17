@@ -297,7 +297,7 @@ let globalProgression = {
     usableItems: {},
     equipInventory: [], equipped: { head: null, shoulders: null, chest: null, arms: null, waist: null, legs: null, boots: null, necklace: null, ring1: null, ring2: null, ring3: null, ring4: null, weapon: null, cape: null },
     newItems: {}, shopGear: [], shopLastRefresh: 0,
-    attributes: { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, devotion: 0 },
+    attributes: { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0 },
     storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
     settings: { sound: true, music: true },
     discoveredEnemies: {}, claimedCodexRewards: {}, killedBosses: {}, discoveredMythicBosses: [],
@@ -305,7 +305,8 @@ let globalProgression = {
     burglarDailyPurchases: 0, burglarLastPurchaseDate: '',
     petsOwned: [], petBattlesWon: 0, petBattleWinStreak: 0, petBattleBestStreak: 0,
     discoveredPets: {}, claimedPetRewards: {}, ultimatePetRewardClaimed: false,
-    petWinLoss: {}
+    petWinLoss: {},
+    saveVersion: 2
 };
 const TREE_NODES = [];
 const skillUnlockNodes = [5, 10, 15, 20, 25, 35, 47];
@@ -490,13 +491,14 @@ function loadGameAndContinue() {
             inventory: { ench_common: 0, ench_rare: 0, ench_epic: 0, ench_legendary: 0, herb_red: 0, herb_blue: 0, fish_1: 0, fish_2: 0, fish_3: 0, fish_4: 0, fish_5: 0, fish_6: 0, soul_pebbles: 0, pot_i1: 0, pot_i2: 0, pot_i3: 0, pot_r1: 0, pot_r2: 0, pot_r3: 0, food_d1: 0, food_d2: 0, food_d3: 0, food_df1: 0, food_df2: 0, food_df3: 0 },
             equipInventory: [], equipped: { head: null, shoulders: null, chest: null, arms: null, waist: null, legs: null, boots: null, necklace: null, ring1: null, ring2: null, ring3: null, ring4: null, weapon: null, cape: null },
             newItems: {}, shopGear: [], shopLastRefresh: 0,
-            attributes: { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, devotion: 0 },
+            attributes: { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0 },
             storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
             settings: { sound: true, music: true },
             gender: 'male',
             discoveredEnemies: {}, claimedCodexRewards: {}, killedBosses: {}, discoveredMythicBosses: [],
             skillTreeEnhancements: [],
-            classBaseAttributes: null
+            classBaseAttributes: null,
+            saveVersion: 2
         };
         const defaultPlayer = {
             classId: 'warrior', lvl: 1, xp: 0, maxHp: 0, currentHp: 0, shield: 0,
@@ -527,7 +529,7 @@ function loadGameAndContinue() {
         if(globalProgression.wellLastHealDate === undefined) globalProgression.wellLastHealDate = '';
         if(globalProgression.wellXpBattles === undefined) globalProgression.wellXpBattles = 0;
         if(globalProgression.wellDropBattles === undefined) globalProgression.wellDropBattles = 0;
-        if(globalProgression.attributes === undefined) globalProgression.attributes = { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, devotion: 0 };
+        if(globalProgression.attributes === undefined) globalProgression.attributes = { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0 };
         if(globalProgression.shopGear === undefined) { globalProgression.shopGear = []; globalProgression.shopLastRefresh = 0; }
         if(globalProgression.settings === undefined) globalProgression.settings = { sound: true, music: true };
         if(globalProgression.discoveredEnemies === undefined) globalProgression.discoveredEnemies = {};
@@ -558,11 +560,19 @@ function loadGameAndContinue() {
         if(player.treeProgressPrecision === undefined) player.treeProgressPrecision = 0;
         if(player.treeProgressSurvival === undefined) player.treeProgressSurvival = 0;
         if(globalProgression.attributes.happiness === undefined) globalProgression.attributes.happiness = 0;
-        if(globalProgression.attributes.devotion === undefined) globalProgression.attributes.devotion = 0;
+        // Migrate old devotion attribute → remove it, add new attributes with 0 default
+        if(globalProgression.attributes.devotion !== undefined) delete globalProgression.attributes.devotion;
+        // Add new attributes for saves that don't have them yet (version migration)
+        if(globalProgression.attributes.rawPower === undefined) globalProgression.attributes.rawPower = 0;
+        if(globalProgression.attributes.force === undefined) globalProgression.attributes.force = 0;
+        if(globalProgression.attributes.revival === undefined) globalProgression.attributes.revival = 0;
+        if(globalProgression.attributes.vampire === undefined) globalProgression.attributes.vampire = 0;
         // Remove legacy 'devastation' attribute if present in old saves
         if(globalProgression.attributes.devastation !== undefined) delete globalProgression.attributes.devastation;
         if(globalProgression.cooldowns.enchants === undefined) globalProgression.cooldowns.enchants = 0;
         if(globalProgression.storyModeProgress.island_defense === undefined) globalProgression.storyModeProgress.island_defense = 0;
+        // Mark save version
+        if(globalProgression.saveVersion === undefined) globalProgression.saveVersion = 1;
         // New fields for burglar, pets
         if(globalProgression.usableItems === undefined) globalProgression.usableItems = {};
         if(globalProgression.burglarDailyPurchases === undefined) globalProgression.burglarDailyPurchases = 0;
@@ -678,7 +688,11 @@ function getEquipStats() {
 
 function calculateMaxHp() {
     let a = globalProgression.attributes;
-    let base = player.data.baseHp + ((player.lvl - 1) * 15) + (a.hp * 20) + (a.tenacity * 5) + (a.agility * 1) + (a.resistance * 5) + ((a.happiness || 0) * 5) + player.treeBonusHp;
+    // Base HP from class, level scaling, and tree bonus
+    let base = player.data.baseHp + ((player.lvl - 1) * 15) + player.treeBonusHp;
+    // HP attribute: +0.5% max HP per point
+    let attrHpMult = 1 + ((a.hp || 1) * 0.005);
+    base = Math.floor(base * attrHpMult);
     // Apply HP Boost enhancements
     let hpBoostMult = 1;
     if (typeof ENHANCEMENT_DEFS !== 'undefined' && ENHANCEMENT_DEFS.hpBoost && ENHANCEMENT_DEFS.hpBoost.vals) {
@@ -688,16 +702,29 @@ function calculateMaxHp() {
             }
         });
     }
+    // Apply HP% bonus from equipment (bonusHpPct stat)
+    if (typeof getEquipBonusStat === 'function') {
+        hpBoostMult *= (1 + getEquipBonusStat('bonusHpPct'));
+    }
     return Math.floor(base * hpBoostMult);
 }
 
 function getBaseDamage() {
     let a = globalProgression.attributes;
-    let baseDmg = player.data.baseDmg + (a.willpower * 4) + (a.agility * 2) + (a.reflexes * 1) + player.treeBonusDmg;
-    // Apply weapon base damage percentage bonus (0.1% per level from new gear system)
+    // Raw Power: +2 base dmg per point; tree bonus flat dmg
+    let baseDmg = player.data.baseDmg + ((a.rawPower || 0) * 2) + player.treeBonusDmg;
+    // Willpower: +0.3% increased base damage per point
+    let willpowerMult = 1 + ((a.willpower || 1) * 0.003);
+    baseDmg = Math.floor(baseDmg * willpowerMult);
+    // Apply weapon base damage percentage bonus (from weaponBaseDmgPct property, 0.1% per level)
     let weapon = globalProgression.equipped ? globalProgression.equipped['weapon'] : null;
     let weaponPctBonus = weapon ? (weapon.weaponBaseDmgPct || 0) : 0;
     if(weaponPctBonus > 0) baseDmg = Math.floor(baseDmg * (1 + weaponPctBonus));
+    // Apply bonusBaseDmgPct from gear (bonus stat for weapon/arms, 0.02% per level)
+    if (typeof getEquipBonusStat === 'function') {
+        let baseDmgPct = getEquipBonusStat('bonusBaseDmgPct');
+        if(baseDmgPct > 0) baseDmg = Math.floor(baseDmg * (1 + baseDmgPct));
+    }
     // Apply weapon enhancement flat bonus (WeaponSmith system — stored in item.stats.dmg)
     let weaponEnhanceDmg = weapon ? ((weapon.stats && weapon.stats.dmg) || 0) : 0;
     baseDmg += weaponEnhanceDmg;
@@ -713,20 +740,21 @@ function getPlayerDef() {
 
 // Returns the permanent base attributes for each class (cannot go below these)
 function getClassBaseAttributes(classId) {
+    const base = { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0 };
     if (classId === 'warrior') {
-        return { hp: 10, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0 };
+        return { ...base, hp: 10, fury: 5 };
     } else if (classId === 'mage') {
-        return { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 10, fury: 1, happiness: 0 };
+        return { ...base, reflexes: 10, force: 5 };
     } else if (classId === 'paladin') {
-        return { hp: 1, tenacity: 1, agility: 10, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0 };
+        return { ...base, agility: 10, revival: 5 };
     } else if (classId === 'ninja') {
-        return { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 10, fury: 1, happiness: 0 };
+        return { ...base, reflexes: 10, vampire: 5 };
     } else if (classId === 'cleric') {
-        return { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0 };
+        return { ...base, happiness: 5, revival: 5 };
     } else if (classId === 'archer') {
-        return { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 10, fury: 1, happiness: 0 };
+        return { ...base, reflexes: 10, force: 5 };
     }
-    return { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0 };
+    return base;
 }
 
 // Returns the per-class attribute caps
@@ -984,7 +1012,7 @@ window.startGame = function(classId = 'warrior') {
         inventory: { ench_common: 0, ench_rare: 0, ench_epic: 0, ench_legendary: 0, herb_red: 0, herb_blue: 0, fish_1: 0, fish_2: 0, fish_3: 0, fish_4: 0, fish_5: 0, fish_6: 0, soul_pebbles: 0, pot_i1: 30, pot_i2: 0, pot_i3: 0, pot_r1: 0, pot_r2: 0, pot_r3: 0, food_d1: 0, food_d2: 0, food_d3: 0, food_df1: 0, food_df2: 0, food_df3: 0 },
         usableItems: {},
         equipInventory: [], equipped: { head: null, shoulders: null, chest: null, arms: null, waist: null, legs: null, boots: null, necklace: null, ring1: null, ring2: null, ring3: null, ring4: null, weapon: null, cape: null }, newItems: {},
-        shopGear: [], shopLastRefresh: 0, attributes: getClassBaseAttributes(classId),
+        attributes: getClassBaseAttributes(classId),
         storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
         settings: { sound: true, music: true },
         gender: 'male',
@@ -993,7 +1021,8 @@ window.startGame = function(classId = 'warrior') {
         burglarDailyPurchases: 0, burglarLastPurchaseDate: '',
         petsOwned: [], petBattlesWon: 0, petBattleWinStreak: 0, petBattleBestStreak: 0,
         discoveredPets: {}, claimedPetRewards: {}, ultimatePetRewardClaimed: false,
-        petWinLoss: {}
+        petWinLoss: {},
+        saveVersion: 2
     };
     player = createFreshPlayer(classId);
     player.maxHp = calculateMaxHp(); player.currentHp = player.maxHp;
@@ -1080,8 +1109,14 @@ function showCodex() {
         list.innerHTML += html;
     });
 
-    // Mythic bosses section
-    let discoveredMythicBosses = globalProgression.discoveredMythicBosses || [];
+    // Mythic bosses section — sort so unclaimed (claimable) bosses appear first
+    let discoveredMythicBosses = (globalProgression.discoveredMythicBosses || []).slice().sort((a, b) => {
+        let aClaimed = globalProgression.claimedCodexRewards && globalProgression.claimedCodexRewards[a];
+        let bClaimed = globalProgression.claimedCodexRewards && globalProgression.claimedCodexRewards[b];
+        if (!aClaimed && bClaimed) return -1;
+        if (aClaimed && !bClaimed) return 1;
+        return 0;
+    });
     if(discoveredMythicBosses.length > 0) {
         list.innerHTML += `<div class="col-span-full text-center text-white font-black text-sm mt-3 mb-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]">✨ MYTHIC ENCOUNTERS ✨</div>`;
         discoveredMythicBosses.forEach(bossName => {
@@ -1151,7 +1186,23 @@ function showPetCodex() {
     list.innerHTML = '';
     const allPets = (typeof PET_DATA !== 'undefined') ? PET_DATA : [];
     let totalDiscovered = 0;
-    allPets.forEach(pet => {
+
+    // Sort: unclaimed discovered first, then claimed discovered, then undiscovered
+    const sortedPets = allPets.slice().sort((a, b) => {
+        let aDisc = isPetDiscovered(a);
+        let bDisc = isPetDiscovered(b);
+        let aClaimed = globalProgression.claimedPetRewards && globalProgression.claimedPetRewards[a.name];
+        let bClaimed = globalProgression.claimedPetRewards && globalProgression.claimedPetRewards[b.name];
+        // Unclaimed+discovered first
+        if (aDisc && !aClaimed && !(bDisc && !bClaimed)) return -1;
+        if (bDisc && !bClaimed && !(aDisc && !aClaimed)) return 1;
+        // Claimed+discovered second
+        if (aDisc && !bDisc) return -1;
+        if (bDisc && !aDisc) return 1;
+        return 0;
+    });
+
+    sortedPets.forEach(pet => {
         let isDiscovered = isPetDiscovered(pet);
         let isClaimed = globalProgression.claimedPetRewards && globalProgression.claimedPetRewards[pet.name];
         if(isDiscovered) totalDiscovered++;
