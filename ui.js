@@ -19,22 +19,25 @@ function showCharacter() {
     const lvlEl = document.getElementById('char-lvl'); if (lvlEl) lvlEl.innerText = player.lvl;
     
     let eqStats = getEquipStats();
-    document.getElementById('char-stat-hp').innerText = `${calculateMaxHp()} (+${eqStats.hp})`;
-    document.getElementById('char-stat-dmg').innerText = `${getBaseDamage()} (+${eqStats.dmg})`;
-    document.getElementById('char-stat-def').innerText = `${getPlayerDef()} (+${eqStats.def})`;
+    document.getElementById('char-stat-hp').innerText = `${calculateMaxHp()}`;
+    document.getElementById('char-stat-dmg').innerText = `${getBaseDamage()}`;
+    document.getElementById('char-stat-def').innerText = `${getPlayerDef()}`;
     
     let a = globalProgression.attributes;
     let hpRegenAmt = Math.floor(player.maxHp * (a.hp * 0.0001 + a.resistance * 0.0001 + a.tenacity * 0.0001 + (a.happiness || 0) * 0.0001 + getEquipBonusStat('bonusHpRegen')));
     document.getElementById('char-stat-regen').innerText = `${(player.treeBonusRegen || 0) + hpRegenAmt} HP/Turn`;
-    document.getElementById('char-stat-gs').innerText = Math.floor(eqStats.hp/10 + eqStats.dmg*2 + eqStats.def*5);
+    // Gear score: based on total itemLevel * rarity across all equipped items
+    let totalGS = 0;
+    if(globalProgression.equipped) Object.values(globalProgression.equipped).forEach(item => { if(item) totalGS += getGearScore(item); });
+    document.getElementById('char-stat-gs').innerText = totalGS;
 
     document.getElementById('char-stat-dodge').innerText = `${((a.resistance * 0.001 + getEquipBonusStat('bonusDodge')) * 100).toFixed(1)}%`;
     document.getElementById('char-stat-hit').innerText = `${((a.reflexes * 0.001 + getEquipBonusStat('bonusHit')) * 100).toFixed(1)}%`;
     document.getElementById('char-stat-crit').innerText = `${Math.min(75, (a.reflexes * 1) + (getEquipBonusStat('bonusCritRate') * 100)).toFixed(1)}%`;
     let classBase = getClassBaseAttributes(player.data.id); document.getElementById('char-stat-critdmg').innerText = `${(100 + ((a.fury - classBase.fury) * 1) + ((a.willpower - classBase.willpower) * 0.5) + (a.reflexes * 0.1) + (getEquipBonusStat('bonusCritDmg') * 100)).toFixed(0)}%`;
     document.getElementById('char-stat-dmgred').innerText = `${((a.tenacity * 0.001 + getEquipBonusStat('bonusDmgReduction')) * 100).toFixed(1)}%`;
-    document.getElementById('char-stat-reflect').innerText = `${((a.tenacity * 0.0001 + getEquipBonusStat('bonusReflect')) * 100).toFixed(3)}%`;
-    document.getElementById('char-stat-skilldmg').innerText = `${(a.agility * 0.1 + (a.happiness || 0) * 0.5).toFixed(1)}%`;
+    document.getElementById('char-stat-reflect').innerText = `${((a.tenacity * 0.0001 + getEquipBonusStat('bonusDmgReflect')) * 100).toFixed(2)}%`;
+    document.getElementById('char-stat-skilldmg').innerText = `${(a.agility * 0.1 + (a.happiness || 0) * 0.5 + getEquipBonusStat('bonusSkillDmg') * 100).toFixed(1)}%`;
     document.getElementById('char-stat-mitigation').innerText = `${Math.min(70, a.resistance * 0.1).toFixed(1)}%`;
     
     const pClass = document.getElementById('char-class-name'); if(pClass) pClass.innerText = player.data.name;
@@ -318,7 +321,12 @@ function respecAttributes() {
 let activeEquipSlot = null;
 function renderBonusStatsHtml(bonusStats) {
     if (!bonusStats || bonusStats.length === 0) return '';
-    return '<div class="text-[10px] text-cyan-300 mt-0.5">' + bonusStats.map(bs => /\d/.test(bs.label) ? `+${bs.label}` : `+${bs.value} ${bs.label}`).join(' | ') + '</div>';
+    return '<div class="text-[10px] text-cyan-300 mt-0.5">' + bonusStats.map(bs => {
+        // CD Reduction is in turns, not percentage
+        if(bs.stat === 'bonusCdReduc') return `CD -${bs.value}t`;
+        let pct = (bs.value * 100).toFixed(2);
+        return `+${pct}% ${bs.label}`;
+    }).join(' | ') + '</div>';
 }
 function openEquipModal(slot) {
     activeEquipSlot = slot;
@@ -337,7 +345,7 @@ function openEquipModal(slot) {
         eqCard.className = `bg-gray-800 border-2 rarity-${currentEq.rarity} p-3 rounded-lg flex justify-between items-center mb-2`;
         let enchTxt = currentEq.enchanted ? `<span class="text-yellow-300 ml-1 text-xs">(${currentEq.enchanted})</span>` : '';
         let bonusTxt = renderBonusStatsHtml(currentEq.bonusStats);
-        eqCard.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${currentEq.icon}</span><div><div class="font-bold text-white">${currentEq.name} ${enchTxt} <span class="text-[10px] text-gray-500 uppercase">${currentEq.rarity}</span></div><div class="text-xs text-green-400">HP +${currentEq.stats.hp} | DMG +${currentEq.stats.dmg} | DEF +${currentEq.stats.def}</div>${bonusTxt}</div></div><button onclick="unequipCurrent()" class="bg-red-900 hover:bg-red-800 text-red-200 px-3 py-2 rounded text-xs font-bold transition active:scale-95 border border-red-700">Unequip</button>`;
+        eqCard.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${currentEq.icon}</span><div><div class="font-bold text-white">${currentEq.name} ${enchTxt} <span class="text-[10px] text-gray-500 uppercase">${currentEq.rarity}</span></div>${currentEq.type === 'weapon' && currentEq.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(currentEq.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}${bonusTxt}</div></div><button onclick="unequipCurrent()" class="bg-red-900 hover:bg-red-800 text-red-200 px-3 py-2 rounded text-xs font-bold transition active:scale-95 border border-red-700">Unequip</button>`;
         eqSection.appendChild(eqCard);
     } else {
         eqSection.innerHTML += `<div class="text-gray-400 text-center py-2 text-sm italic bg-gray-900 rounded-lg">Nothing Equipped</div>`;
@@ -352,17 +360,17 @@ function openEquipModal(slot) {
         invSection.innerHTML += `<div class="text-gray-500 text-center py-4 text-sm bg-gray-900 rounded-lg">No items in bag for this slot.</div>`; 
     } else {
         // Sort by gear score
-        invItems.sort((a,b) => getGearScore(b.stats) - getGearScore(a.stats));
+        invItems.sort((a,b) => getGearScore(b) - getGearScore(a));
         invItems.forEach(item => {
             let btn = document.createElement('div');
-            let isUpgrade = currentEq ? getGearScore(item.stats) > getGearScore(currentEq.stats) : true;
+            let isUpgrade = currentEq ? getGearScore(item) > getGearScore(currentEq) : true;
             btn.className = `bg-gray-900 border-2 rarity-${item.rarity} p-3 rounded-lg flex justify-between items-center cursor-pointer hover:bg-gray-700 transition mb-2 relative`;
             
             let upgradeBadge = isUpgrade ? `<span class="absolute -top-2 -left-2 bg-green-600 text-white text-[10px] px-1 rounded shadow border border-green-400 font-bold tracking-widest">UPGRADE</span>` : '';
             let enchTxt = item.enchanted ? `<span class="text-yellow-300 ml-1 text-xs">(${item.enchanted})</span>` : '';
             let bonusTxt = renderBonusStatsHtml(item.bonusStats);
             
-            btn.innerHTML = `${upgradeBadge}<div class="flex items-center gap-2"><span class="text-2xl">${item.icon || '📦'}</span><div><div class="font-bold text-white">${item.name} ${enchTxt} <span class="text-[10px] text-gray-500 uppercase">${item.rarity}</span></div><div class="text-xs text-green-400">HP +${item.stats.hp} | DMG +${item.stats.dmg} | DEF +${item.stats.def}</div>${bonusTxt}</div></div><button class="bg-blue-800 hover:bg-blue-700 text-blue-200 px-4 py-2 rounded text-xs font-bold border border-blue-600 transition active:scale-95">Equip</button>`;
+            btn.innerHTML = `${upgradeBadge}<div class="flex items-center gap-2"><span class="text-2xl">${item.icon || '📦'}</span><div><div class="font-bold text-white">${item.name} ${enchTxt} <span class="text-[10px] text-gray-500 uppercase">${item.rarity}</span></div>${item.type === 'weapon' && item.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(item.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}${bonusTxt}</div></div><button class="bg-blue-800 hover:bg-blue-700 text-blue-200 px-4 py-2 rounded text-xs font-bold border border-blue-600 transition active:scale-95">Equip</button>`;
             btn.onclick = (e) => { if(e.target.tagName !== 'BUTTON') return; equipItem(item.id); }; 
             invSection.appendChild(btn);
         });
@@ -388,12 +396,12 @@ function quickEquipAll() {
     EQUIP_SLOTS.forEach(slot => {
         let baseSlot = slot.startsWith('ring') ? 'ring' : slot;
         let currentEq = globalProgression.equipped[slot];
-        let currentGS = currentEq ? getGearScore(currentEq.stats) : -1;
+        let currentGS = currentEq ? getGearScore(currentEq) : -1;
         let bestIdx = -1;
         let bestGS = currentGS;
         inventory.forEach((item, idx) => {
             if(item.type === baseSlot) {
-                let gs = getGearScore(item.stats);
+                let gs = getGearScore(item);
                 if(gs > bestGS) { bestGS = gs; bestIdx = idx; }
             }
         });
@@ -436,12 +444,9 @@ function rollEquipment(forcedRarity = null) {
         else if (rarityRoll < 0.11) r = 'epic';
         else if (rarityRoll < 0.31) r = 'rare';
     }
-    
-    let mult = RARITY_MULTS[r]; 
 
     // Item level: random in [playerLevel - 5, playerLevel + 5], clamped to min 1, max 100
     let itemLevel = Math.min(100, Math.max(1, player.lvl + Math.floor(Math.random() * 11) - 5));
-    let totalPts = itemLevel * mult;
 
     // Class-specific weapon naming
     let weaponName = 'Sword';
@@ -461,19 +466,18 @@ function rollEquipment(forcedRarity = null) {
         id: 'eq_' + Date.now() + Math.floor(Math.random()*1000), type: sType, rarity: r, 
         name: sType === 'weapon' ? `${r.toUpperCase()} ${weaponName} [Lv.${itemLevel}]` : `${r.toUpperCase()} ${sType} [Lv.${itemLevel}]`,
         icon: SLOT_ICONS[sType] || '📦',
-        stats: { hp: 0, dmg: 0, def: 0 },
+        stats: {},
         bonusStats: [],
         enchanted: false,
         itemLevel: itemLevel
     };
-    
-    if (sType === 'weapon') { e.stats.dmg = totalPts; }
-    else if (sType === 'chest' || sType === 'legs') { e.stats.hp = totalPts * 5; e.stats.def = Math.ceil(totalPts * 0.2); }
-    else if (sType === 'cape') { e.stats.hp = totalPts * 3; e.stats.def = Math.ceil(totalPts * 0.3); }
-    else if (sType === 'head' || sType === 'shoulders' || sType === 'boots' || sType === 'arms' || sType === 'waist') { e.stats.hp = totalPts * 2; e.stats.def = Math.ceil(totalPts * 0.5); }
-    else if (sType === 'necklace' || sType === 'ring') { e.stats.dmg = Math.ceil(totalPts * 0.5); e.stats.hp = totalPts; }
 
-    // Generate random bonus stats
+    // Weapons get base damage percentage (0.1% per level)
+    if (sType === 'weapon') {
+        e.weaponBaseDmgPct = 0.001 * itemLevel;
+    }
+
+    // Generate random bonus stats for all items
     e.bonusStats = generateBonusStats(r, itemLevel, sType);
 
     return e;
@@ -482,17 +486,17 @@ function rollEquipment(forcedRarity = null) {
 // Generate random bonus stats for equipment
 function generateBonusStats(rarity, lvl, sType) {
     let pool = [
-        { stat: 'bonusHp', label: 'HP' },
-        { stat: 'bonusDmgReduction', label: '0.1% Dmg Reduction' },
-        { stat: 'bonusAtk', label: 'Attack Damage' },
-        { stat: 'bonusCritRate', label: '0.1% Crit Rate' },
-        { stat: 'bonusCritDmg', label: '0.1% Crit Damage' },
-        { stat: 'bonusReflect', label: '0.01% Reflect' },
-        { stat: 'bonusHpRegen', label: '0.01% HP Regen' },
-        { stat: 'bonusDodge', label: '0.1% Dodge' },
-        { stat: 'bonusHit', label: '0.1% Hit' }
+        { stat: 'bonusHpRegen',        basePerLevel: 0.0001, label: 'HP Regen' },
+        { stat: 'bonusDmgReduction',   basePerLevel: 0.001,  label: 'Dmg Reduction' },
+        { stat: 'bonusDmgReflect',     basePerLevel: 0.001,  label: 'Dmg Reflect' },
+        { stat: 'bonusSkillDmg',       basePerLevel: 0.001,  label: 'Skill Damage' },
+        { stat: 'bonusCritRate',       basePerLevel: 0.001,  label: 'Crit Chance' },
+        { stat: 'bonusCritDmg',        basePerLevel: 0.001,  label: 'Crit Damage' },
+        { stat: 'bonusDodge',          basePerLevel: 0.001,  label: 'Dodge' },
+        { stat: 'bonusHit',            basePerLevel: 0.002,  label: 'Hit' },
+        { stat: 'bonusHealing',        basePerLevel: 0.001,  label: 'Healing' },
+        { stat: 'bonusRareDropChance', basePerLevel: 0.001,  label: 'Rare Drop Chance' }
     ];
-    let lvlScale = lvl; // stats scale linearly: baseStat * level
     let numStats = rarity === 'mythic' ? 5 : rarity === 'legendary' ? 4 : rarity === 'epic' ? 3 : rarity === 'rare' ? 2 : 1;
     let result = [];
     let available = pool.slice();
@@ -500,21 +504,12 @@ function generateBonusStats(rarity, lvl, sType) {
         if (available.length === 0) break;
         let idx = Math.floor(Math.random() * available.length);
         let chosen = available.splice(idx, 1)[0];
-        let value = 0;
-        if (chosen.stat === 'bonusHp') value = Math.ceil(lvl * 2 * lvlScale);
-        else if (chosen.stat === 'bonusDmgReduction') value = 0.001 * lvlScale;
-        else if (chosen.stat === 'bonusAtk') value = Math.ceil(lvl * 0.3 * lvlScale);
-        else if (chosen.stat === 'bonusCritRate') value = 0.001 * lvlScale;
-        else if (chosen.stat === 'bonusCritDmg') value = 0.001 * lvlScale;
-        else if (chosen.stat === 'bonusReflect') value = 0.0001 * lvlScale;
-        else if (chosen.stat === 'bonusHpRegen') value = 0.0001 * lvlScale;
-        else if (chosen.stat === 'bonusDodge') value = 0.001 * lvlScale;
-        else if (chosen.stat === 'bonusHit') value = 0.001 * lvlScale;
-        result.push({ stat: chosen.stat, value: value, label: chosen.label });
+        let value = chosen.basePerLevel * lvl;
+        result.push({ stat: chosen.stat, value: value, label: chosen.label, basePerLevel: chosen.basePerLevel });
     }
     // Cooldown reduction: ONLY on legendary rings
     if (rarity === 'legendary' && sType === 'ring') {
-        result.push({ stat: 'bonusCdReduc', value: 3, label: 'Reduce Skill CD by 3 turns' });
+        result.push({ stat: 'bonusCdReduc', value: 3, label: 'CD Reduction (3t)' });
     }
     return result;
 }
@@ -1228,7 +1223,7 @@ function showEnchanter() {
             let enchStatus = eq.enchanted ? `<span class="text-xs text-yellow-300 bg-gray-900 px-2 py-1 rounded">(${eq.enchanted})</span>` : 
                 `<button onclick="openEnchantModal('${slot}')" class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded text-xs font-bold transition active:scale-95 shadow-md">Enchant</button>`;
             
-            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-3xl">${eq.icon}</span><div><div class="font-bold text-white">${eq.name}</div><div class="text-xs text-green-400">HP +${eq.stats.hp} | DMG +${eq.stats.dmg} | DEF +${eq.stats.def}</div></div></div> ${enchStatus}`;
+            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-3xl">${eq.icon}</span><div><div class="font-bold text-white">${eq.name}</div>${eq.type === 'weapon' && eq.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(eq.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}</div></div> ${enchStatus}`;
             document.getElementById('ench-list').appendChild(btn);
         }
     });
@@ -1319,9 +1314,20 @@ function applyEnchant(coreId, mult, coreName) {
     if(eq && !eq.enchanted && globalProgression.inventory[coreId] > 0) {
         globalProgression.inventory[coreId]--;
         eq.enchanted = coreName;
-        eq.stats.hp = Math.floor(eq.stats.hp * mult) + (eq.stats.hp > 0 ? 1 : 0);
-        eq.stats.dmg = Math.floor(eq.stats.dmg * mult) + (eq.stats.dmg > 0 ? 1 : 0);
-        eq.stats.def = Math.floor(eq.stats.def * mult) + (eq.stats.def > 0 ? 1 : 0);
+        // Enhance weapon base damage percentage for new gear system
+        if(eq.weaponBaseDmgPct) {
+            eq.weaponBaseDmgPct = eq.weaponBaseDmgPct * mult;
+        }
+        // Enhance bonus stats values
+        if(eq.bonusStats) {
+            eq.bonusStats.forEach(bs => { if(bs.stat !== 'bonusCdReduc') bs.value = bs.value * mult; });
+        }
+        // Legacy flat stats (old save data compatibility)
+        if(eq.stats) {
+            if(eq.stats.hp) eq.stats.hp = Math.floor(eq.stats.hp * mult) + 1;
+            if(eq.stats.dmg) eq.stats.dmg = Math.floor(eq.stats.dmg * mult) + 1;
+            if(eq.stats.def) eq.stats.def = Math.floor(eq.stats.def * mult) + 1;
+        }
         playSound('win'); player.maxHp = calculateMaxHp(); saveGame(); closeEnchantModal();
     }
 }
@@ -1390,7 +1396,7 @@ function showShop() {
             div.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${g.item.icon}</span><span class="text-gray-500 line-through">${g.item.name}</span></div> <span class="text-xs font-bold text-gray-500">SOLD OUT</span>`;
         } else {
             div.className = `bg-gray-800 border-2 rarity-${g.item.rarity} p-3 rounded-lg flex justify-between items-center shadow-md`;
-            div.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${g.item.icon}</span><div><div class="font-bold text-white">${g.item.name} <span class="text-[10px] text-gray-500 uppercase">${g.item.rarity}</span></div><div class="text-xs text-green-400">HP +${g.item.stats.hp} | DMG +${g.item.stats.dmg} | DEF +${g.item.stats.def}</div></div></div><button onclick="buyShopGear(${idx})" class="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition active:scale-95 shadow-md flex items-center gap-1"><span>Buy</span><span class="text-yellow-400">💰${g.cost}</span></button>`;
+            div.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${g.item.icon}</span><div><div class="font-bold text-white">${g.item.name} <span class="text-[10px] text-gray-500 uppercase">${g.item.rarity}</span></div>${g.item.type === 'weapon' && g.item.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(g.item.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}</div></div><button onclick="buyShopGear(${idx})" class="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition active:scale-95 shadow-md flex items-center gap-1"><span>Buy</span><span class="text-yellow-400">💰${g.cost}</span></button>`;
         }
         gearList.appendChild(div);
     });
@@ -1609,32 +1615,35 @@ function workshopEnhance(btn) {
 
     // Find and update the item
     let found = false;
+    function recalcMythicItem(item) {
+        let newLvl = player.lvl;
+        item.lvl = newLvl;
+        item.itemLevel = newLvl;
+        // Recalculate weapon base damage percentage
+        if(item.type === 'weapon') {
+            item.weaponBaseDmgPct = 0.001 * newLvl;
+        }
+        // Recalculate all bonus stat values based on basePerLevel
+        if(item.bonusStats) {
+            item.bonusStats.forEach(bs => {
+                if(bs.basePerLevel) bs.value = bs.basePerLevel * newLvl;
+            });
+        }
+        // Update item name to reflect new level
+        let namePrefix = item.name.split(' [Lv.')[0];
+        item.name = `${namePrefix} [Lv.${newLvl}]`;
+    }
     if(source === 'equipped') {
         Object.values(globalProgression.equipped).forEach(item => {
-            if(item && item.name === itemName && item.rarity === 'mythic') {
-                item.lvl = player.lvl;
-                // Recalculate stats based on new level
-                let baseLvl = item.lvl;
-                let rarityMult = RARITY_MULTS['mythic'] || 30;
-                if(item.stats) {
-                    item.stats.hp = Math.floor(baseLvl * 2 * rarityMult * 0.5) || item.stats.hp;
-                    item.stats.dmg = Math.floor(baseLvl * rarityMult * 0.3) || item.stats.dmg;
-                    item.stats.def = Math.floor(baseLvl * rarityMult * 0.2) || item.stats.def;
-                }
+            if(item && item.name && item.name.includes(itemName.split(' [Lv.')[0]) && item.rarity === 'mythic') {
+                recalcMythicItem(item);
                 found = true;
             }
         });
     } else {
         (globalProgression.equipInventory || []).forEach(item => {
-            if(item && item.name === itemName && item.rarity === 'mythic') {
-                item.lvl = player.lvl;
-                let baseLvl = item.lvl;
-                let rarityMult = RARITY_MULTS['mythic'] || 30;
-                if(item.stats) {
-                    item.stats.hp = Math.floor(baseLvl * 2 * rarityMult * 0.5) || item.stats.hp;
-                    item.stats.dmg = Math.floor(baseLvl * rarityMult * 0.3) || item.stats.dmg;
-                    item.stats.def = Math.floor(baseLvl * rarityMult * 0.2) || item.stats.def;
-                }
+            if(item && item.name && item.name.includes(itemName.split(' [Lv.')[0]) && item.rarity === 'mythic') {
+                recalcMythicItem(item);
                 found = true;
             }
         });
@@ -3362,7 +3371,7 @@ function processAutoTurn() {
 
 function processRegenAndBuffs() {
     let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
-    let healingBuffMult = 1.0;
+    let healingBuffMult = 1.0 + getEquipBonusStat('bonusHealing');
     if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
     let a = globalProgression.attributes;
     let hpRegenAmt = Math.floor(player.maxHp * (a.hp * 0.0001 + a.resistance * 0.0001 + a.tenacity * 0.0001 + (a.happiness || 0) * 0.0001 + getEquipBonusStat('bonusHpRegen')));
@@ -3386,7 +3395,7 @@ function processRegenAndBuffs() {
         let hasMedicineReflect = player.activeBuffs.some(b => b.type === 'medicine_reflect');
         
         player.activeBuffs.forEach(b => {
-            if(b.type === 'burn') burnDmg += Math.floor(player.maxHp * 0.05);
+            if(b.type === 'burn') burnDmg += Math.floor(player.maxHp * 0.06); // 6% max HP per burn (max 1 stack)
             b.turns--; 
         });
         
@@ -3403,14 +3412,14 @@ function processRegenAndBuffs() {
             }
         }
 
-        // Poison tick damage (1% per stack, max 2 stacks)
+        // Poison tick damage (2% per stack, max 2 stacks, reduces healing 50%)
         let poisonBuffs = player.activeBuffs.filter(b => b.type === 'poison');
         let poisonStacks = Math.min(poisonBuffs.length, 2);
         if(poisonBuffs.length > 2) {
             let keptPoison = poisonBuffs.slice(0, 2);
             player.activeBuffs = player.activeBuffs.filter(b => b.type !== 'poison').concat(keptPoison);
         }
-        let poisonDmg = poisonStacks * Math.floor(player.maxHp * 0.01);
+        let poisonDmg = poisonStacks * Math.floor(player.maxHp * 0.02);
         if(poisonDmg > 0) {
             if(hasMedicineReflect) {
                 let target = enemies.find(e => e.currentHp > 0);
@@ -3430,7 +3439,7 @@ function processRegenAndBuffs() {
     if(player.bleedTurns > 0) {
         let hasMedicineReflect2 = player.activeBuffs.some(b => b.type === 'medicine_reflect');
         if(hasMedicineReflect2) {
-            let bleedDmg = Math.max(1, Math.floor(player.maxHp * 0.01 * player.bleedStacks));
+            let bleedDmg = Math.max(1, Math.floor(player.maxHp * 0.02 * player.bleedStacks));
             let target = enemies.find(e => e.currentHp > 0);
             if(target) { target.currentHp = Math.max(0, target.currentHp - bleedDmg); addLog(`💊 Medicine reflected ${bleedDmg} bleed to ${target.name}!`, 'text-green-400'); }
         }
@@ -3467,7 +3476,7 @@ function usePlayerSkill(slotIndex) {
     if (player.activeBuffs) player.activeBuffs.filter(b => b.type === 'dmg').forEach(b => buffDmgMult *= b.val);
     let a = globalProgression.attributes;
     let dev = a.devotion || 0;
-    let skillDmgMult = 1 + (a.agility * 0.001) + ((a.happiness || 0) * 0.0005);
+    let skillDmgMult = 1 + (a.agility * 0.001) + ((a.happiness || 0) * 0.0005) + getEquipBonusStat('bonusSkillDmg');
     
     let scaledPower = Math.max(1, Math.floor(baseDmg * skill.mult * buffDmgMult * skillDmgMult));
     let hits = skill.hits || 1;
@@ -3521,16 +3530,27 @@ function usePlayerSkill(slotIndex) {
                 if(target.dodgeTurns > 0 || Math.random() > hitChance) {
                     addLog(`Missed ${target.name}!`, "text-gray-500");
                     showFloatText(`enemy-card-${tIdx}`, `MISS`, 'text-gray-400');
-                    target.dodgeTurns = 0;
+                    if(target.dodgeTurns > 0) target.dodgeTurns--;
                     return; 
                 }
                 
-                let defMult = 1 - (target.defReduction || 0); 
+                let defMult = 1 - Math.min(0.95, target.defReduction || 0); 
                 let hitDmg = Math.floor(scaledPower * defMult * (target.dmgTakenMult || 1));
                 if(!Number.isFinite(hitDmg) || hitDmg < 0) hitDmg = 0;
                 
+                // vs_bleeding bonus damage
+                if(target.bleedStacks > 0) {
+                    let vsBleedingBuff = player.activeBuffs ? player.activeBuffs.find(b => b.type === 'vs_bleeding') : null;
+                    if(vsBleedingBuff) hitDmg = Math.floor(hitDmg * vsBleedingBuff.val);
+                }
+
                 if(skill.special === 'hpPctDmg') {
-                    hitDmg = Math.max(1, Math.floor(target.maxHp * (skill.hpPctDmg || 0.30)));
+                    hitDmg = Math.max(1, Math.floor(target.maxHp * (skill.hpPctDmg || 0.25)));
+                }
+
+                // Self HP% bonus damage (Weapon Throw, Knockout)
+                if(skill.selfHpPctBonus) {
+                    hitDmg += Math.floor(player.maxHp * skill.selfHpPctBonus);
                 }
 
                 if (target.shield > 0) { hitDmg = Math.floor(hitDmg * (1 - target.shield)); target.shield = 0; }
@@ -3556,6 +3576,14 @@ function usePlayerSkill(slotIndex) {
                     addLog(`${target.name}'s Reflect dealt ${reflectedDmg} damage back!`, 'text-cyan-400');
                 }
 
+                // Eruption buff: each hit inflicts 1 bleed stack
+                let eruptionBuff = player.activeBuffs ? player.activeBuffs.find(b => b.type === 'eruption') : null;
+                if(eruptionBuff) {
+                    target.bleedStacks = Math.min(5, (target.bleedStacks || 0) + 1);
+                    target.bleedTurns = Math.max(target.bleedTurns || 0, 5);
+                    showFloatText('enemy-card-' + tIdx, `🌋🩸`, 'text-red-400');
+                }
+
                 if(skill.effect) {
                     if(skill.effect.bleed) {
                         let bleedChance = skill.effect.chance !== undefined ? skill.effect.chance : 1.0;
@@ -3563,7 +3591,12 @@ function usePlayerSkill(slotIndex) {
                             target.bleedStacks = (target.bleedStacks || 0) + 1; target.bleedTurns = skill.effect.turns;
                         }
                     }
-                    if(skill.effect.defDown) { target.defReduction = Math.min(1, (target.defReduction || 0) + skill.effect.defDown); }
+                    if(skill.effect.defDown) {
+                        let maxDefDown = 5 * (skill.effect.defDown || 0);
+                        target.defReduction = Math.min(maxDefDown, (target.defReduction || 0) + skill.effect.defDown);
+                        // Refresh turns if defDownTurns provided
+                        if(skill.effect.defDownTurns) target.defReductionTurns = skill.effect.defDownTurns;
+                    }
                     if(skill.effect.healBlock) { target.healBlock = skill.effect.healBlock; }
                     if(skill.effect.stunChance && Math.random() < skill.effect.stunChance) {
                         target.stunned = (target.stunned || 0) + (skill.effect.stunTurns || 1);
@@ -3576,19 +3609,29 @@ function usePlayerSkill(slotIndex) {
                         showFloatText('enemy-card-' + tIdx, 'POISON', 'text-green-400');
                     }
                     if(skill.effect.bleedStacks) {
-                        target.bleedStacks = (target.bleedStacks || 0) + skill.effect.bleedStacks;
-                        target.bleedTurns = Math.max(target.bleedTurns || 0, skill.effect.bleedTurns || 3);
+                        target.bleedStacks = Math.min(5, (target.bleedStacks || 0) + skill.effect.bleedStacks);
+                        target.bleedTurns = Math.max(target.bleedTurns || 0, skill.effect.bleedTurns || 5);
                         showFloatText('enemy-card-' + tIdx, `🩸x${skill.effect.bleedStacks}`, 'text-red-500');
                     }
                     if(skill.effect.burnStacks) {
-                        target.burnStacks = (target.burnStacks || 0) + skill.effect.burnStacks;
+                        // Burn max 1 stack
+                        target.burnStacks = Math.min(1, (target.burnStacks || 0) + skill.effect.burnStacks);
                         target.burnTurns = Math.max(target.burnTurns || 0, skill.effect.burnTurns || 3);
                         showFloatText('enemy-card-' + tIdx, `🔥`, 'text-orange-500');
                     }
                     if(skill.effect.poisonStacks) {
-                        target.poisonStacks = (target.poisonStacks || 0) + skill.effect.poisonStacks;
-                        target.poisonTurns = Math.max(target.poisonTurns || 0, skill.effect.poisonTurns || 3);
+                        // Poison max 2 stacks
+                        target.poisonStacks = Math.min(2, (target.poisonStacks || 0) + skill.effect.poisonStacks);
+                        target.poisonTurns = Math.max(target.poisonTurns || 0, skill.effect.poisonTurns || 2);
+                        // Poison reduces healing (handled in processRegenAndBuffs via target.healBlock)
+                        target.healBlock = Math.max(target.healBlock || 0, skill.effect.poisonTurns || 2);
                         showFloatText('enemy-card-' + tIdx, `☠️x${skill.effect.poisonStacks}`, 'text-green-500');
+                    }
+                    if(skill.effect.missStacks) {
+                        // Miss: 40% chance to skip next attack, 1 turn (configurable via skill.effect.missChance)
+                        target.skipChance = skill.effect.missChance || 0.40;
+                        target.skipTurns = (target.skipTurns || 0) + 1;
+                        showFloatText('enemy-card-' + tIdx, `MISS`, 'text-gray-400');
                     }
                 }
             });
@@ -3598,9 +3641,27 @@ function usePlayerSkill(slotIndex) {
             let ps = ensureProgressStats(); if (totalDmg > (ps.highestDmg || 0)) ps.highestDmg = totalDmg;
         }
 
+        // Poke special: steal HP% from target (default 20%, configurable via skill.pokePct)
+        if(skill.special === 'poke') {
+            let pokeTarget = enemies[activeTargetIndex];
+            if(pokeTarget && pokeTarget.currentHp > 0) {
+                let pokePct = skill.pokePct || 0.20;
+                let pokeDmg = Math.floor(pokeTarget.maxHp * pokePct);
+                pokeTarget.currentHp = Math.max(0, pokeTarget.currentHp - pokeDmg);
+                let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
+                let healingBuffMult = 1.0 + getEquipBonusStat('bonusHealing');
+                if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
+                let pokeHeal = Math.floor(pokeDmg * healMult * healingBuffMult);
+                player.currentHp = Math.min(player.maxHp, player.currentHp + pokeHeal);
+                showFloatText('player-avatar-container', `+${pokeHeal}`, 'text-green-400');
+                showFloatText(`enemy-card-${activeTargetIndex}`, `-${pokeDmg}`, 'text-fuchsia-400');
+                addLog(`Poke! Removed ${pokeDmg} HP from ${pokeTarget.name}, healed ${pokeHeal}!`, 'text-fuchsia-400 font-bold');
+            }
+        }
+
     } else if (skill.type === 'heal') {
         let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
-        let healingBuffMult = 1.0;
+        let healingBuffMult = 1.0 + getEquipBonusStat('bonusHealing');
         if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
         let actualHeal = Math.floor(scaledPower * healMult * healingBuffMult);
         playSound('heal'); triggerAnim('combat-player-avatar', 'anim-heal'); 
@@ -3641,24 +3702,29 @@ function usePlayerSkill(slotIndex) {
 
     if(skill.self_effect) {
         let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
-        let healingBuffMult = 1.0;
+        let healingBuffMult = 1.0 + getEquipBonusStat('bonusHealing');
         if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
         if(skill.self_effect.healPct) { let h = Math.floor(player.maxHp * skill.self_effect.healPct * healMult * healingBuffMult); player.currentHp = Math.min(player.maxHp, player.currentHp + h); showFloatText('player-avatar-container', `+${h}`, 'text-green-400'); }
-        if(skill.self_effect.fullHeal) { let h = Math.floor((player.maxHp - player.currentHp) * healMult * healingBuffMult); player.currentHp = player.maxHp; showFloatText('player-avatar-container', `FULL HEAL!`, 'text-green-400 font-bold'); playSound('heal'); addLog(`Full HP restored!`, 'text-green-400 font-bold'); }
+        if(skill.self_effect.fullHeal) { player.currentHp = player.maxHp; showFloatText('player-avatar-container', `FULL HEAL!`, 'text-green-400 font-bold'); playSound('heal'); addLog(`Full HP restored!`, 'text-green-400 font-bold'); }
         if(skill.self_effect.defDown) { player.activeBuffs.push({ type: 'def_down', val: 1 - skill.self_effect.defDown, turns: skill.self_effect.turns }); }
-        if(skill.self_effect.regenPct) { player.regenBuffs.push({ amount: Math.floor(player.maxHp * skill.self_effect.regenPct), turns: skill.self_effect.turns }); }
-        if(skill.self_effect.defUp) { player.activeBuffs.push({ type: 'def', val: 1 + skill.self_effect.defUp, turns: skill.self_effect.turns }); }
+        if(skill.self_effect.regenPct) { player.regenBuffs.push({ amount: Math.floor(player.maxHp * skill.self_effect.regenPct), turns: skill.self_effect.regenTurns || skill.self_effect.turns }); }
+        if(skill.self_effect.defUp) { player.activeBuffs.push({ type: 'def', val: 1 + skill.self_effect.defUp, turns: skill.self_effect.defUpTurns || skill.self_effect.turns }); }
         if(skill.self_effect.fireShield) { player.activeBuffs.push({ type: 'fire_shield', turns: skill.self_effect.turns }); }
         if(skill.self_effect.iceShield) { player.activeBuffs.push({ type: 'ice_shield', turns: skill.self_effect.turns }); }
         if(skill.self_effect.dmgUp) { player.activeBuffs.push({ type: 'dmg', val: 1 + skill.self_effect.dmgUp, turns: skill.self_effect.dmgUpTurns || skill.self_effect.turns }); }
-        if(skill.self_effect.dmgBuff) { player.activeBuffs.push({ type: 'dmg', val: 1 + skill.self_effect.dmgBuff, turns: skill.self_effect.turns || 999 }); addLog(`+${Math.floor(skill.self_effect.dmgBuff*100)}% Damage buff!`, 'text-orange-400 font-bold'); }
-        if(skill.self_effect.healingBuff) { player.activeBuffs.push({ type: 'healingBuff', val: skill.self_effect.healingBuff, turns: skill.self_effect.turns || 5 }); addLog(`Healing increased by ${Math.floor(skill.self_effect.healingBuff*100)}% for ${skill.self_effect.turns||5} turns! 💫`, 'text-pink-400 font-bold'); }
+        if(skill.self_effect.dmgBuff) { player.activeBuffs.push({ type: 'dmg', val: 1 + skill.self_effect.dmgBuff, turns: skill.self_effect.dmgBuffTurns || skill.self_effect.turns || 3 }); addLog(`+${Math.floor(skill.self_effect.dmgBuff*100)}% Damage buff!`, 'text-orange-400 font-bold'); }
+        if(skill.self_effect.healingBuff) { player.activeBuffs.push({ type: 'healingBuff', val: skill.self_effect.healingBuff, turns: skill.self_effect.healingBuffTurns || skill.self_effect.turns || 3 }); addLog(`Healing +${Math.floor(skill.self_effect.healingBuff*100)}% for ${skill.self_effect.healingBuffTurns||skill.self_effect.turns||3}t! 💫`, 'text-pink-400 font-bold'); }
         if(skill.self_effect.reAlive) { player.reAliveArmed = true; addLog(`Re Alive armed! Will revive at 50% HP on death!`, 'text-yellow-400 font-bold'); }
         if(skill.self_effect.blockHit) {
             if(Math.random() < (skill.self_effect.blockChance || 0.50)) {
                 player.activeBuffs.push({ type: 'block_hit', turns: skill.self_effect.blockTurns || 3 });
                 addLog(`Block stance! May block next hit!`, 'text-blue-300 font-bold');
             }
+        }
+        if(skill.self_effect.block) {
+            // Block ALL incoming damage for N turns (Stomp)
+            player.activeBuffs.push({ type: 'block_all', turns: skill.self_effect.block });
+            addLog(`Block! All incoming damage ignored for ${skill.self_effect.block}t!`, 'text-blue-300 font-bold');
         }
         if(skill.self_effect.reflect) {
             player.activeBuffs.push({ type: 'skill_reflect', val: skill.self_effect.reflect, turns: skill.self_effect.reflectTurns || 1 });
@@ -3669,7 +3735,27 @@ function usePlayerSkill(slotIndex) {
             addLog('Taking double damage!', 'text-red-400 font-bold');
         }
         if(skill.self_effect.dodgeTurns) {
-            player.dodgeTurns = skill.self_effect.dodgeTurns;
+            player.dodgeTurns = (player.dodgeTurns || 0) + skill.self_effect.dodgeTurns;
+        }
+        if(skill.self_effect.dodgePct) {
+            // Percentage dodge chance buff (Bandaid)
+            player.activeBuffs.push({ type: 'dodge_pct', val: skill.self_effect.dodgePct, turns: skill.self_effect.dodgePctTurns || skill.self_effect.turns || 2 });
+            addLog(`+${Math.floor(skill.self_effect.dodgePct*100)}% Dodge (${skill.self_effect.dodgePctTurns||skill.self_effect.turns||2}t)!`, 'text-gray-300 font-bold');
+        }
+        if(skill.self_effect.vsBleeding) {
+            // Bonus damage vs bleeding targets (Ruthless Bash)
+            player.activeBuffs.push({ type: 'vs_bleeding', val: 1 + skill.self_effect.vsBleeding, turns: skill.self_effect.vsBleedingTurns || skill.self_effect.turns || 5 });
+            addLog(`+${Math.floor(skill.self_effect.vsBleeding*100)}% damage vs bleeding enemies (${skill.self_effect.vsBleedingTurns||5}t)!`, 'text-red-300 font-bold');
+        }
+        if(skill.self_effect.selfDefDown) {
+            // Reduce own def (Knockout)
+            player.activeBuffs.push({ type: 'def_down', val: 1 - skill.self_effect.selfDefDown, turns: skill.self_effect.selfDefDownTurns || 3 });
+            addLog(`Own DEF reduced by ${Math.floor(skill.self_effect.selfDefDown*100)}% for ${skill.self_effect.selfDefDownTurns||3}t!`, 'text-red-400');
+        }
+        if(skill.self_effect.eruption) {
+            // Eruption buff: hits inflict bleed stacks
+            player.activeBuffs.push({ type: 'eruption', turns: skill.self_effect.eruptionTurns || skill.self_effect.turns || 4 });
+            addLog(`Eruption active! Hits inflict Bleed (${skill.self_effect.eruptionTurns||4}t)!`, 'text-red-400 font-bold');
         }
     }
 
@@ -3717,20 +3803,25 @@ function executeEnemyTurns(enemyIdx, extraTurns = 0) {
     }
 
     if(extraTurns === 0 && e.bleedTurns > 0) {
-        let bDmg = Math.max(1, Math.floor(e.maxHp * 0.01 * e.bleedStacks)); e.currentHp -= bDmg; e.bleedTurns--; showFloatText(`enemy-card-${enemyIdx}`, `-${bDmg}`, 'text-red-600');
+        // Bleed: 2% of max HP per stack per turn, reduces def by 2% per stack
+        let bDmg = Math.max(1, Math.floor(e.maxHp * 0.02 * e.bleedStacks)); e.currentHp -= bDmg; e.bleedTurns--; showFloatText(`enemy-card-${enemyIdx}`, `-${bDmg}`, 'text-red-600');
         if(e.currentHp <= 0) { updateCombatUI(); setTimeout(() => executeEnemyTurns(enemyIdx + 1), 400); return; }
     }
     if(extraTurns === 0 && e.burnTurns > 0) {
-        let burnStacks = e.burnStacks || 1;
-        let burnDmg = Math.max(1, Math.floor(e.maxHp * 0.05 * burnStacks)); e.currentHp -= burnDmg; e.burnTurns--; if(e.burnTurns <= 0) e.burnStacks = 0; showFloatText(`enemy-card-${enemyIdx}`, `-${burnDmg}🔥`, 'text-orange-500');
+        // Burn: 6% max HP per turn, max 1 stack
+        let burnStacks = Math.min(1, e.burnStacks || 1);
+        let burnDmg = Math.max(1, Math.floor(e.maxHp * 0.06 * burnStacks)); e.currentHp -= burnDmg; e.burnTurns--; if(e.burnTurns <= 0) e.burnStacks = 0; showFloatText(`enemy-card-${enemyIdx}`, `-${burnDmg}🔥`, 'text-orange-500');
         if(e.currentHp <= 0) { updateCombatUI(); setTimeout(() => executeEnemyTurns(enemyIdx + 1), 400); return; }
     }
     if(extraTurns === 0 && e.poisonTurns > 0) {
-        let poisonStacks = e.poisonStacks || 1;
-        let poisonDmg = Math.max(1, Math.floor(e.maxHp * 0.01 * poisonStacks)); e.currentHp -= poisonDmg; e.poisonTurns--; if(e.poisonTurns <= 0) e.poisonStacks = 0; showFloatText(`enemy-card-${enemyIdx}`, `-${poisonDmg}☠️`, 'text-green-500');
+        // Poison: 2% HP per stack per turn, max 2 stacks
+        let poisonStacks = Math.min(2, e.poisonStacks || 1);
+        let poisonDmg = Math.max(1, Math.floor(e.maxHp * 0.02 * poisonStacks)); e.currentHp -= poisonDmg; e.poisonTurns--; if(e.poisonTurns <= 0) e.poisonStacks = 0; showFloatText(`enemy-card-${enemyIdx}`, `-${poisonDmg}☠️`, 'text-green-500');
         if(e.currentHp <= 0) { updateCombatUI(); setTimeout(() => executeEnemyTurns(enemyIdx + 1), 400); return; }
     }
     if(extraTurns === 0 && e.dmgTakenTurns > 0) { e.dmgTakenTurns--; if(e.dmgTakenTurns <= 0) e.dmgTakenMult = 1; }
+    // Tick down def reduction turns
+    if(extraTurns === 0 && (e.defReductionTurns || 0) > 0) { e.defReductionTurns--; if(e.defReductionTurns <= 0) e.defReduction = 0; }
 
     // Decrement CD
     if(e.cooldowns) {
@@ -3902,11 +3993,26 @@ function dealDamageToPlayer(baseDmg, attackerEnemy, isCritHit = false) {
     baseDmg = Number.isFinite(baseDmg) ? Math.max(0, baseDmg) : 0;
     let a = globalProgression.attributes;
     let dev = (a.devotion || 0);
+
+    // Block ALL incoming damage (Stomp block effect)
+    let blockAllBuff = player.activeBuffs ? player.activeBuffs.find(b => b.type === 'block_all') : null;
+    if(blockAllBuff) {
+        // Block all attacks during this turn — turns decremented by processRegenAndBuffs
+        addLog(`Blocked all damage!`, 'text-blue-300 font-bold');
+        showFloatText('player-avatar-container', `BLOCK`, 'text-blue-300');
+        playSound('shield');
+        return;
+    }
+
     let dodgeChance = a.resistance * 0.001 + getEquipBonusStat('bonusDodge');
+    // Check percentage dodge buff (Bandaid)
+    let dodgePctBuff = player.activeBuffs ? player.activeBuffs.find(b => b.type === 'dodge_pct') : null;
+    if(dodgePctBuff) dodgeChance += dodgePctBuff.val;
+
     if(player.dodgeTurns > 0 || Math.random() < dodgeChance) {
         addLog(`You dodged!`, "text-gray-400 font-bold");
         showFloatText('player-avatar-container', `DODGE`, 'text-gray-400');
-        player.dodgeTurns = 0;
+        if(player.dodgeTurns > 0) player.dodgeTurns--;
         return;
     }
 
@@ -4025,9 +4131,9 @@ function dealDamageToPlayer(baseDmg, attackerEnemy, isCritHit = false) {
     }
 
     // Reflect
-    let reflectPct = (a.tenacity + dev) * 0.0001 + getEquipBonusStat('bonusReflect');
+    let reflectPct = (a.tenacity + dev) * 0.0001 + getEquipBonusStat('bonusDmgReflect');
     let fireShieldActive = player.activeBuffs && player.activeBuffs.some(b => b.type === 'fire_shield');
-    if(fireShieldActive) reflectPct += 0.01;
+    if(fireShieldActive) reflectPct += 1.0; // Fire Shield reflects 100%
 
     // Reflect enhancement
     let reflectEnh = globalProgression.skillTreeEnhancements ? globalProgression.skillTreeEnhancements.find(e => e.type === 'reflect') : null;
@@ -4055,7 +4161,7 @@ function startPlayerTurn() {
     if(enemies.length > 0 && enemies.every(e => e.currentHp <= 0)) { endBattle(true); return; }
     
     if(player.bleedTurns > 0) {
-        let bDmg = Math.max(1, Math.floor(player.maxHp * 0.01 * player.bleedStacks));
+        let bDmg = Math.max(1, Math.floor(player.maxHp * 0.02 * player.bleedStacks));
         player.currentHp -= bDmg; player.bleedTurns--; 
         showFloatText(`player-avatar-container`, `-${bDmg}`, 'text-red-600'); addLog(`Bleed damage!`, 'text-red-600');
         if(player.currentHp <= 0) { updateCombatUI(); setTimeout(() => endBattle(false), 500); return; }

@@ -637,6 +637,8 @@ function getDropRateMultiplier() {
             dropRateBonus += vals[e.rarity] || 0;
         }
     });
+    // Add gear bonus rare drop chance
+    dropRateBonus += (typeof getEquipBonusStat === 'function') ? getEquipBonusStat('bonusRareDropChance') : 0;
     return base * (1 + dropRateBonus);
 }
 
@@ -650,33 +652,33 @@ function consumeWellBattleCharges() {
     if((globalProgression.wellDropBattles || 0) > 0) globalProgression.wellDropBattles--;
 }
 
-function getGearScore(stats) {
-    if(!stats) return 0;
-    return (stats.hp||0)/10 + (stats.dmg||0)*2 + (stats.def||0)*5;
+function getGearScore(itemOrStats) {
+    if(!itemOrStats) return 0;
+    // If it's an item object with itemLevel and rarity, use level * rarity score
+    if(itemOrStats.itemLevel && itemOrStats.rarity) {
+        let rarityScore = {common: 1, rare: 2, epic: 5, legendary: 10, mythic: 30}[itemOrStats.rarity] || 1;
+        return itemOrStats.itemLevel * rarityScore;
+    }
+    // Fallback: old flat stats (for backward compatibility)
+    return (itemOrStats.hp||0)/10 + (itemOrStats.dmg||0)*2 + (itemOrStats.def||0)*5;
 }
 
 function hasBetterGear(slot) {
     let eq = globalProgression.equipped[slot];
-    let eqGS = eq ? getGearScore(eq.stats) : -1;
+    let eqGS = eq ? getGearScore(eq) : -1;
     let baseSlot = slot.startsWith('ring') ? 'ring' : slot;
-    let betterInInv = globalProgression.equipInventory.some(i => i.type === baseSlot && getGearScore(i.stats) > eqGS);
+    let betterInInv = globalProgression.equipInventory.some(i => i.type === baseSlot && getGearScore(i) > eqGS);
     return betterInInv;
 }
 
 function getEquipStats() {
-    let stats = { hp: 0, dmg: 0, def: 0 };
-    if(!globalProgression.equipped) return stats;
-    Object.values(globalProgression.equipped).forEach(item => {
-        if(item && item.stats) { stats.hp += (item.stats.hp || 0); stats.dmg += (item.stats.dmg || 0); stats.def += (item.stats.def || 0); }
-    });
-    return stats;
+    // Gear no longer provides flat hp/dmg/def — new system uses percentage stats
+    return { hp: 0, dmg: 0, def: 0 };
 }
 
 function calculateMaxHp() {
-    let equipStats = getEquipStats();
     let a = globalProgression.attributes;
-    let bonusHp = (typeof getEquipBonusStat === 'function') ? getEquipBonusStat('bonusHp') : 0;
-    let base = player.data.baseHp + ((player.lvl - 1) * 15) + (a.hp * 20) + (a.tenacity * 5) + (a.agility * 1) + (a.resistance * 5) + ((a.happiness || 0) * 5) + player.treeBonusHp + equipStats.hp + bonusHp;
+    let base = player.data.baseHp + ((player.lvl - 1) * 15) + (a.hp * 20) + (a.tenacity * 5) + (a.agility * 1) + (a.resistance * 5) + ((a.happiness || 0) * 5) + player.treeBonusHp;
     // Apply HP Boost enhancements
     let hpBoostMult = 1;
     if (typeof ENHANCEMENT_DEFS !== 'undefined' && ENHANCEMENT_DEFS.hpBoost && ENHANCEMENT_DEFS.hpBoost.vals) {
@@ -690,20 +692,23 @@ function calculateMaxHp() {
 }
 
 function getBaseDamage() {
-    let equipStats = getEquipStats();
     let a = globalProgression.attributes;
-    let bonusAtk = (typeof getEquipBonusStat === 'function') ? getEquipBonusStat('bonusAtk') : 0;
-    let baseDmg = player.data.baseDmg + (a.willpower * 4) + (a.agility * 2) + (a.reflexes * 1) + player.treeBonusDmg + equipStats.dmg + bonusAtk;
-    // Apply weapon enhance max bonus (+5% at level 100)
+    let baseDmg = player.data.baseDmg + (a.willpower * 4) + (a.agility * 2) + (a.reflexes * 1) + player.treeBonusDmg;
+    // Apply weapon base damage percentage bonus (0.1% per level from new gear system)
     let weapon = globalProgression.equipped ? globalProgression.equipped['weapon'] : null;
+    let weaponPctBonus = weapon ? (weapon.weaponBaseDmgPct || 0) : 0;
+    if(weaponPctBonus > 0) baseDmg = Math.floor(baseDmg * (1 + weaponPctBonus));
+    // Apply weapon enhancement flat bonus (WeaponSmith system — stored in item.stats.dmg)
+    let weaponEnhanceDmg = weapon ? ((weapon.stats && weapon.stats.dmg) || 0) : 0;
+    baseDmg += weaponEnhanceDmg;
+    // Apply weapon enhance max bonus (+5% at level 100)
     if(weapon && weapon.weaponEnhanceMaxBonus) baseDmg = Math.floor(baseDmg * 1.05);
     return baseDmg;
 }
 
 function getPlayerDef() {
-    let equipStats = getEquipStats();
     let a = globalProgression.attributes;
-    return 1 + player.treeBonusDef + equipStats.def; // HP no longer adds defense
+    return 1 + player.treeBonusDef; // Gear damage reduction now handled via bonusDmgReduction pct stat
 }
 
 // Returns the permanent base attributes for each class (cannot go below these)
