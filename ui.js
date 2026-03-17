@@ -1410,6 +1410,7 @@ function buyShopGear(idx) {
 }
 
 function sellItem(type, amount) {
+    if(type.startsWith('pot_') || type.startsWith('food_')) return;
     let invAmount = globalProgression.inventory[type] || 0; let sellCount = amount === 'all' ? invAmount : amount;
     if (sellCount > 0 && invAmount >= sellCount) { globalProgression.inventory[type] -= sellCount; globalProgression.gold += (sellCount * MAT_PRICES[type]); playSound('click'); saveGame(); showShop(); }
 }
@@ -1459,11 +1460,11 @@ function showAlchemist() {
     const list = document.getElementById('alch-craft-list'); list.innerHTML = '';
     RECIPES_ALCHEMIST.forEach(rec => {
         let pot = CONSUMABLES[rec.id]; let btn = document.createElement('button'); btn.className = `bg-gray-800 p-2 rounded-lg flex justify-between items-center border border-gray-700 hover:border-green-500 transition active:scale-95`;
-        let canCraft = p.gold >= rec.gold && (p.inventory[rec.herb] || 0) >= rec.herbAmt;
+        let canCraft = p.gold >= rec.gold && (p.inventory[rec.herb] || 0) >= rec.herbAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
         btn.disabled = !canCraft; if(!canCraft) btn.classList.add('opacity-50');
         let herbIcon = rec.herb === 'herb_red' ? '🌺' : '💠';
-        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${pot.icon}</span> <div><b class="text-white">${pot.name}</b><br><span class="text-[10px] text-gray-400">${pot.desc}</span></div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${herbIcon} ${rec.herbAmt}</span><span>💰 ${rec.gold}</span></div>`;
-        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.herb] -= rec.herbAmt; p.inventory[rec.id] = (p.inventory[rec.id] || 0) + 1; playSound('heal'); saveGame(); showAlchemist(); };
+        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${pot.icon}</span> <div><b class="text-white">${pot.name}</b><br><span class="text-[10px] text-gray-400">${pot.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${herbIcon} ${rec.herbAmt}</span><span>💰 ${rec.gold}</span></div>`;
+        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.herb] -= rec.herbAmt; addToInventory(rec.id, 1); playSound('heal'); saveGame(); showAlchemist(); };
         list.appendChild(btn);
     });
     switchScreen('screen-alchemist');
@@ -1473,10 +1474,10 @@ function showChef() {
     let p = globalProgression; document.getElementById('chef-gold-display').innerText = p.gold; const list = document.getElementById('chef-craft-list'); list.innerHTML = '';
     RECIPES_CHEF.forEach(rec => {
         let food = CONSUMABLES[rec.id]; let btn = document.createElement('button'); btn.className = `bg-gray-800 p-2 rounded-lg flex justify-between items-center border border-gray-700 hover:border-orange-500 transition active:scale-95`;
-        let canCraft = p.gold >= rec.gold && (p.inventory[rec.fish] || 0) >= rec.fishAmt;
+        let canCraft = p.gold >= rec.gold && (p.inventory[rec.fish] || 0) >= rec.fishAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
         btn.disabled = !canCraft; if(!canCraft) btn.classList.add('opacity-50');
-        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${food.icon}</span> <div><b class="text-white">${food.name}</b><br><span class="text-[10px] text-gray-400">${food.desc}</span></div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${MAT_ICONS[rec.fish]} ${rec.fishAmt}</span><span>💰 ${rec.gold}</span></div>`;
-        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.fish] -= rec.fishAmt; p.inventory[rec.id] = (p.inventory[rec.id] || 0) + 1; playSound('win'); saveGame(); showChef(); };
+        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${food.icon}</span> <div><b class="text-white">${food.name}</b><br><span class="text-[10px] text-gray-400">${food.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${MAT_ICONS[rec.fish]} ${rec.fishAmt}</span><span>💰 ${rec.gold}</span></div>`;
+        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.fish] -= rec.fishAmt; addToInventory(rec.id, 1); playSound('win'); saveGame(); showChef(); };
         list.appendChild(btn);
     });
     switchScreen('screen-chef');
@@ -1795,8 +1796,31 @@ function startInvasion() {
 }
 
 // --- PET BATTLE ---
+function regenPetBattleEnergy() {
+    const MAX_PET_ENERGY = 10;
+    const REGEN_MS = 300000; // 5 minutes
+    if(globalProgression.petBattleEnergy === undefined) globalProgression.petBattleEnergy = MAX_PET_ENERGY;
+    if(globalProgression.petBattleLastEnergyTime === undefined) globalProgression.petBattleLastEnergyTime = Date.now();
+    if(globalProgression.petBattleEnergy < MAX_PET_ENERGY) {
+        let now = Date.now();
+        let msPassed = now - globalProgression.petBattleLastEnergyTime;
+        let ticksPassed = Math.floor(msPassed / REGEN_MS);
+        if(ticksPassed > 0) {
+            globalProgression.petBattleEnergy = Math.min(MAX_PET_ENERGY, globalProgression.petBattleEnergy + ticksPassed);
+            // Set lastEnergyTime to the timestamp of the most recent complete regen tick,
+            // preserving partial progress toward the next tick.
+            globalProgression.petBattleLastEnergyTime = now - (msPassed % REGEN_MS);
+            saveGame();
+        }
+    } else {
+        globalProgression.petBattleLastEnergyTime = Date.now();
+    }
+}
+
 function showPetBattle() {
+    regenPetBattleEnergy();
     document.getElementById('pet-battle-gold-display').innerText = globalProgression.gold;
+    document.getElementById('pet-battle-energy-display').innerText = globalProgression.petBattleEnergy;
     petBattleActive = false;
     petBattlePlayerPet = null;
 
@@ -1827,6 +1851,14 @@ function showPetBattle() {
 }
 
 function startPetBattle(playerPetId) {
+    regenPetBattleEnergy();
+    if((globalProgression.petBattleEnergy || 0) <= 0) {
+        let energyMsg = document.getElementById('pet-energy-msg');
+        if(energyMsg) { energyMsg.innerText = '😴 Your pet is tired! Energy recharges in 5 min.'; energyMsg.classList.remove('hidden'); }
+        return;
+    }
+    let energyMsg = document.getElementById('pet-energy-msg');
+    if(energyMsg) energyMsg.classList.add('hidden');
     // Cancel any active auto-battle before entering pet battle
     if(typeof isAutoBattle !== 'undefined' && isAutoBattle) {
         isAutoBattle = false;
@@ -1993,7 +2025,9 @@ function petBattleRoundEnd(playerWon) {
         if(btn) btn.disabled = true;
     });
     if(playerWon) {
-        globalProgression.gold += 50;
+        globalProgression.gold += 15;
+        globalProgression.petBattleEnergy = Math.max(0, (globalProgression.petBattleEnergy || 0) - 1);
+        globalProgression.petBattleLastEnergyTime = Date.now();
         // Drop a Titan Shard for winning
         globalProgression.inventory.titan_shard = (globalProgression.inventory.titan_shard || 0) + 1;
         let xpGain = Math.floor(getXpForNextLevel(player.lvl) * 0.01);
@@ -2016,17 +2050,34 @@ function petBattleRoundEnd(playerWon) {
         checkLevelUp();
         let ps = ensureProgressStats();
         ps.battlesWon = (ps.battlesWon || 0) + 1;
-        document.getElementById('pb-result-text').innerText = `🎉 You won! +50 Gold, +1 🔱 Titan Shard, +${xpGain} XP\nStreak: ${globalProgression.petBattleWinStreak}`;
+        document.getElementById('pb-result-text').innerText = `🎉 You won! +15 Gold, +1 🔱 Titan Shard, +${xpGain} XP\nStreak: ${globalProgression.petBattleWinStreak}`;
         playSound('win');
         showPetBattleVictory();
         saveGame();
         document.getElementById('pet-battle-gold-display').innerText = globalProgression.gold;
+        document.getElementById('pet-battle-energy-display').innerText = globalProgression.petBattleEnergy;
         // Heal and start next round
         setTimeout(() => {
             petBattlePlayerHp = 10;
             petBattleEnemyHp = 10;
             petBattleLastAction = null;
             petBattleEnemyLastAction = null;
+            // Check energy for next round
+            regenPetBattleEnergy();
+            if((globalProgression.petBattleEnergy || 0) <= 0) {
+                document.getElementById('pb-result-text').innerText = '😴 Out of energy! Recharges in 5 min.';
+                ['attack', 'block', 'counter'].forEach(action => {
+                    let btn = document.getElementById(`pb-btn-${action}`);
+                    if(btn) { btn.disabled = true; btn.classList.add('opacity-50'); }
+                });
+                if(petBattleAutoMode) {
+                    petBattleAutoMode = false;
+                    if(petBattleAutoTimer) { clearTimeout(petBattleAutoTimer); petBattleAutoTimer = null; }
+                    let autoBtn = document.getElementById('pb-btn-auto');
+                    if(autoBtn) { autoBtn.classList.remove('auto-on'); autoBtn.innerText = '🤖 Auto'; }
+                }
+                return;
+            }
             // New enemy pet
             petBattleEnemyPet = PET_DATA[Math.floor(Math.random() * PET_DATA.length)];
             document.getElementById('pb-enemy-emoji').innerText = petBattleEnemyPet.emoji;
@@ -2328,7 +2379,7 @@ function generateQuest(qNum) {
     if(qNum === 3) baseReward = 150;
     if(qNum === 4) baseReward = 200;
 
-    globalProgression[`questRwd${qNum}`] = Math.floor(baseReward * mult);
+    globalProgression[`questRwd${qNum}`] = Math.floor(baseReward * mult * (1 + player.lvl * 0.005));
 }
 
 function updateQuestUI(qNum) {
@@ -4211,6 +4262,7 @@ function endBattle(playerWon) {
     const rwdCont = document.getElementById('rewards-container');
     
     lvlUp.classList.add('hidden'); spTxt.classList.add('hidden'); rwdCont.classList.add('hidden'); rwdCont.innerHTML = '';
+    let endGoldCont = document.getElementById('end-gold-container'); if(endGoldCont) endGoldCont.style.display = 'none';
 
     if (playerWon) {
         playSound('win');
@@ -4487,6 +4539,18 @@ function endBattle(playerWon) {
         });
         totalXp = Math.floor(totalXp * xpMult);
         document.getElementById('end-xp-amount').innerText = totalXp; globalProgression.totalExpEarned += totalXp;
+
+        // Gold per kill (not in quest or training mode)
+        let endGold = 0;
+        if(currentMode !== 'quest' && currentMode !== 'training') {
+            let goldPerKill = 2 + Math.floor(player.lvl / 5);
+            endGold = enemies.filter(e => e.currentHp <= 0).length * goldPerKill;
+            if(currentMode === 'dungeon') endGold *= 2;
+            if(currentMode === 'invasion') endGold *= 3;
+            globalProgression.gold += endGold;
+        }
+        document.getElementById('end-gold-amount').innerText = endGold;
+        document.getElementById('end-gold-container').style.display = endGold > 0 ? 'block' : 'none';
 
         consumeWellBattleCharges();
 
