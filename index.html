@@ -1003,6 +1003,7 @@
         <p id="end-desc" class="mb-4 text-lg text-gray-300">Enemies defeated.</p>
         <div id="rewards-container" class="flex gap-2 mb-4 flex-wrap justify-center w-full max-w-md"></div>
         <div id="xp-gain-container" class="w-full max-w-xs mb-8 bg-gray-900 p-4 rounded-xl text-center shadow-lg border border-gray-700">
+            <div id="end-gold-container" class="text-yellow-400 font-bold mb-2" style="display:none">💰 +<span id="end-gold-amount">0</span> G</div>
             <div class="text-yellow-400 mb-2 font-bold">+<span id="end-xp-amount">0</span> XP</div>
             <div class="xp-bar-container mb-1"><div id="end-xp-bar" class="xp-bar"></div></div>
             <div id="levelup-text" class="text-green-400 font-bold text-lg h-6 animate-bounce hidden mt-2">LEVEL UP! (+5 Stat)</div>
@@ -1151,9 +1152,10 @@
             <div class="flex justify-between items-center mb-4">
                 <button onclick="showPortal()" class="btn-back text-pink-400 px-4 py-2 rounded-lg font-bold flex items-center gap-2"><span>⬅️</span> Portal</button>
                 <div class="text-sm font-bold text-yellow-400 bg-gray-800 px-3 py-1 rounded-full border border-yellow-700">💰 <span id="pet-battle-gold-display">0</span></div>
+                <div class="text-sm font-bold text-blue-400 bg-gray-800 px-3 py-1 rounded-full border border-blue-700">⚡ <span id="pet-battle-energy-display">10</span>/10</div>
             </div>
             <h2 class="text-3xl font-bold mb-1 text-pink-400 text-center tracking-widest drop-shadow-md">🐾 PET BATTLES</h2>
-            <p class="text-xs text-gray-400 text-center mb-4">Rock-Paper-Scissors style! Win 50 Gold + 1% XP per win.</p>
+            <p class="text-xs text-gray-400 text-center mb-4">Rock-Paper-Scissors style! Win 15 Gold + 1% XP per win. (⚡ Costs 1 Pet Energy per win)</p>
 
             <!-- Pet Select Area -->
             <div id="pet-select-area">
@@ -1161,6 +1163,7 @@
                     <h3 class="font-bold text-pink-300 mb-3 text-center">Choose Your Pet</h3>
                     <div id="pet-owned-list" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto"></div>
                     <p id="pet-no-pets-msg" class="text-gray-500 text-center py-4 text-sm hidden">No pets yet! Pets have a 5% drop chance in any game mode.</p>
+                    <p id="pet-energy-msg" class="text-orange-400 text-center py-2 text-sm font-bold hidden"></p>
                 </div>
                 <div class="bg-gray-900 border border-gray-700 rounded-xl p-4 mb-4">
                     <h3 class="font-bold text-gray-300 mb-2 text-sm text-center uppercase tracking-widest">Battle Rules</h3>

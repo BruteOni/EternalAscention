@@ -306,6 +306,7 @@ let globalProgression = {
     petsOwned: [], petBattlesWon: 0, petBattleWinStreak: 0, petBattleBestStreak: 0,
     discoveredPets: {}, claimedPetRewards: {}, ultimatePetRewardClaimed: false,
     petWinLoss: {},
+    petBattleEnergy: 10, petBattleLastEnergyTime: Date.now(),
     saveVersion: 2
 };
 const TREE_NODES = [];
@@ -412,6 +413,15 @@ setInterval(updateHp, 1000);
 function consumeEnergy(amount) {
     if(globalProgression.energy >= amount) { globalProgression.energy -= amount; let maxEnergy = getMaxEnergy(); if(globalProgression.energy === maxEnergy - amount) globalProgression.lastEnergyTime = Date.now(); saveGame(); updateEnergy(); return true; }
     return false;
+}
+
+// --- INVENTORY STACK CAP ---
+const INVENTORY_STACK_CAP = 99;
+function addToInventory(type, amount) {
+    let current = globalProgression.inventory[type] || 0;
+    let newAmount = Math.min(current + amount, INVENTORY_STACK_CAP);
+    globalProgression.inventory[type] = newAmount;
+    return newAmount - current; // actual amount added
 }
 
 // --- PROGRESS STATS HELPERS ---
@@ -588,6 +598,8 @@ function loadGameAndContinue() {
         if(globalProgression.claimedPetRewards === undefined) globalProgression.claimedPetRewards = {};
         if(globalProgression.ultimatePetRewardClaimed === undefined) globalProgression.ultimatePetRewardClaimed = false;
         if(globalProgression.petWinLoss === undefined) globalProgression.petWinLoss = {};
+        if(globalProgression.petBattleEnergy === undefined) globalProgression.petBattleEnergy = 10;
+        if(globalProgression.petBattleLastEnergyTime === undefined) globalProgression.petBattleLastEnergyTime = Date.now();
         // Migrate progressStats for existing saves
         if (!player.progressStats) player.progressStats = {};
         let ps = player.progressStats;
@@ -1012,6 +1024,7 @@ window.startGame = function(classId = 'warrior') {
         petsOwned: [], petBattlesWon: 0, petBattleWinStreak: 0, petBattleBestStreak: 0,
         discoveredPets: {}, claimedPetRewards: {}, ultimatePetRewardClaimed: false,
         petWinLoss: {},
+        petBattleEnergy: 10, petBattleLastEnergyTime: Date.now(),
         saveVersion: 2
     };
     player = createFreshPlayer(classId);
@@ -1401,26 +1414,27 @@ function gatherAction(type) {
         
         // Gold & XP gains
         let xpGain = Math.floor(getXpForNextLevel(player.lvl) * 0.10);
-        globalProgression.gold += 5;
+        let gatherGold = 5 + Math.floor(player.lvl / 10);
+        globalProgression.gold += gatherGold;
         player.xp += xpGain;
 
         showFloatText(`btn-gather-${type}`, `+${xpGain} XP`, 'text-yellow-400');
 
         if(type === 'herbs') {
             let r1 = (Math.floor(Math.random()*3)+1) * 5; let r2 = (Math.floor(Math.random()*3)+1) * 5;
-            globalProgression.inventory.herb_red += r1; globalProgression.inventory.herb_blue += r2;
-            if(log) log.innerHTML = `<span class="text-green-400">Gathered ${r1} Crimson & ${r2} Azure Herbs! (+5G, +${xpGain}XP)</span>`;
+            addToInventory('herb_red', r1); addToInventory('herb_blue', r2);
+            if(log) log.innerHTML = `<span class="text-green-400">Gathered ${r1} Crimson & ${r2} Azure Herbs! (+${gatherGold}G, +${xpGain}XP)</span>`;
         } else if (type === 'fish') {
             let types = [1,2,3,4,5,6];
             let pick1 = types.splice(Math.floor(Math.random()*types.length), 1)[0]; let pick2 = types.splice(Math.floor(Math.random()*types.length), 1)[0];
             let a1 = (Math.floor(Math.random()*2)+1) * 5; let a2 = (Math.floor(Math.random()*2)+1) * 5;
-            globalProgression.inventory[`fish_${pick1}`] += a1; globalProgression.inventory[`fish_${pick2}`] += a2;
-            if(log) log.innerHTML = `<span class="text-blue-400">Caught ${a1} ${MAT_NAMES['fish_'+pick1]} & ${a2} ${MAT_NAMES['fish_'+pick2]}! (+5G, +${xpGain}XP)</span>`;
+            addToInventory(`fish_${pick1}`, a1); addToInventory(`fish_${pick2}`, a2);
+            if(log) log.innerHTML = `<span class="text-blue-400">Caught ${a1} ${MAT_NAMES['fish_'+pick1]} & ${a2} ${MAT_NAMES['fish_'+pick2]}! (+${gatherGold}G, +${xpGain}XP)</span>`;
         } else if (type === 'enchants') {
             let roll = Math.random();
             let eTier = roll < 0.05 ? 'ench_legendary' : roll < 0.20 ? 'ench_epic' : roll < 0.50 ? 'ench_rare' : 'ench_common';
-            globalProgression.inventory[eTier] = (globalProgression.inventory[eTier] || 0) + 5;
-            if(log) log.innerHTML = `<span class="text-purple-400">Found 5 ${MAT_NAMES[eTier]}! (+5G, +${xpGain}XP)</span>`;
+            addToInventory(eTier, 5);
+            if(log) log.innerHTML = `<span class="text-purple-400">Found 5 ${MAT_NAMES[eTier]}! (+${gatherGold}G, +${xpGain}XP)</span>`;
         }
         
         checkLevelUp();
