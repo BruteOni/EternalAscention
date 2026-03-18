@@ -30,15 +30,15 @@ Object.values(CONSUMABLES).forEach(c => {
 // These items are purchased from the Burglar, stored in globalProgression.usableItems,
 // and can be equipped to usable slots. They have per-battle cooldowns.
 const USABLE_ITEMS = {
-    usb_bomb:        { id: 'usb_bomb',        name: 'Bomb',         icon: '💣', price: 50,  cooldown: 2,  desc: '30% HP damage to target',                    effectType: 'bomb' },
-    usb_medicine:    { id: 'usb_medicine',    name: 'Medicine',     icon: '💊', price: 10,  cooldown: 0,  desc: 'Reflect bleed/poison/burn to enemy (1 turn)', effectType: 'medicine' },
-    usb_knife:       { id: 'usb_knife',       name: 'Knife',        icon: '🔪', price: 50,  cooldown: 0,  desc: '10% HP damage + 2 bleed stacks',             effectType: 'knife' },
-    usb_darkness:    { id: 'usb_darkness',    name: 'Darkness',     icon: '🌑', price: 50,  cooldown: 5,  desc: 'Enemy 15% miss chance (3 turns, no stack)',   effectType: 'darkness',    immuneToCDR: true },
-    usb_curse:       { id: 'usb_curse',       name: 'Curse',        icon: '☠️', price: 100, cooldown: 4,  desc: 'Prevents 100% healing for 1 turn',           effectType: 'curse',       immuneToCDR: true },
-    usb_ice_block:   { id: 'usb_ice_block',   name: 'Ice Block',    icon: '🧊', price: 50,  cooldown: 5,  desc: 'Reduce incoming damage 50% for 1 turn',      effectType: 'ice_block' },
-    usb_mirror:      { id: 'usb_mirror',      name: 'Mirror Shard', icon: '🪞', price: 100, cooldown: 8,  desc: 'Reflect 100% damage for 1 turn',             effectType: 'mirror' },
-    usb_distraction: { id: 'usb_distraction', name: 'Distraction',  icon: '🎭', price: 100, cooldown: 10, desc: 'Enemies attack themselves for 1 turn',       effectType: 'distraction' },
-    usb_bud_butt:    { id: 'usb_bud_butt',    name: 'Mud Butt',     icon: '💩', price: 20,  cooldown: 0,  desc: 'Deals 10% HP damage to ALL enemies',         effectType: 'bud_butt' }
+    usb_bomb:        { id: 'usb_bomb',        name: 'Bomb',         icon: '💣', price: 150, cooldown: 2,  desc: '30% HP damage to target',                    effectType: 'bomb' },
+    usb_medicine:    { id: 'usb_medicine',    name: 'Medicine',     icon: '💊', price: 30,  cooldown: 0,  desc: 'Reflect bleed/poison/burn to enemy (1 turn)', effectType: 'medicine' },
+    usb_knife:       { id: 'usb_knife',       name: 'Knife',        icon: '🔪', price: 150, cooldown: 0,  desc: '10% HP damage + 2 bleed stacks',             effectType: 'knife' },
+    usb_darkness:    { id: 'usb_darkness',    name: 'Darkness',     icon: '🌑', price: 150, cooldown: 5,  desc: 'Enemy 15% miss chance (3 turns, no stack)',   effectType: 'darkness',    immuneToCDR: true },
+    usb_curse:       { id: 'usb_curse',       name: 'Curse',        icon: '☠️', price: 300, cooldown: 4,  desc: 'Prevents 100% healing for 1 turn',           effectType: 'curse',       immuneToCDR: true },
+    usb_ice_block:   { id: 'usb_ice_block',   name: 'Ice Block',    icon: '🧊', price: 150, cooldown: 5,  desc: 'Reduce incoming damage 50% for 1 turn',      effectType: 'ice_block' },
+    usb_mirror:      { id: 'usb_mirror',      name: 'Mirror Shard', icon: '🪞', price: 300, cooldown: 8,  desc: 'Reflect 100% damage for 1 turn',             effectType: 'mirror' },
+    usb_distraction: { id: 'usb_distraction', name: 'Distraction',  icon: '🎭', price: 300, cooldown: 10, desc: 'Enemies attack themselves for 1 turn',       effectType: 'distraction' },
+    usb_bud_butt:    { id: 'usb_bud_butt',    name: 'Mud Butt',     icon: '💩', price: 60,  cooldown: 0,  desc: 'Deals 10% HP damage to ALL enemies',         effectType: 'bud_butt' }
 };
 
 // Burglar item pool list (for invasion random drops etc.)

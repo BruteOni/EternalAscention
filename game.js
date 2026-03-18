@@ -297,7 +297,7 @@ let globalProgression = {
     usableItems: {},
     equipInventory: [], equipped: { head: null, shoulders: null, chest: null, arms: null, waist: null, legs: null, boots: null, necklace: null, ring1: null, ring2: null, ring3: null, ring4: null, weapon: null, cape: null },
     newItems: {}, shopGear: [], shopLastRefresh: 0,
-    attributes: { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 },
+    attributes: { hp: 0, tenacity: 0, agility: 0, willpower: 0, resistance: 0, reflexes: 0, fury: 0, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 },
     storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
     settings: { sound: true, music: true, autoBattleTargetPriority: 'easy', autoBattleUsables: [] },
     discoveredEnemies: {}, claimedCodexRewards: {}, killedBosses: {}, discoveredMythicBosses: [],
@@ -338,7 +338,7 @@ let player = {
 
 let enemies = []; let activeTargetIndex = 0; let currentMode = 'none'; 
 let activeDungeonTier = 1; let activeDungeonRoom = 1; 
-let isPlayerTurn = true; let combatLog = []; let isAutoBattle = false; let combatActive = false; 
+let isPlayerTurn = true; let combatLog = []; let isAutoBattle = false; let combatActive = false; let battleEnding = false;
 let activeGraveyardBoss = null;
 // Invasion state
 let invasionTotalKills = 0; let invasionKillGoal = 10; let invasionMaxOnScreen = 4; let invasionSpawned = 0;
@@ -506,7 +506,7 @@ function loadGameAndContinue() {
         inventory: { ench_common: 0, ench_rare: 0, ench_epic: 0, ench_legendary: 0, herb_red: 0, herb_blue: 0, fish_1: 0, fish_2: 0, fish_3: 0, fish_4: 0, fish_5: 0, fish_6: 0, soul_pebbles: 0, pot_i1: 0, pot_i2: 0, pot_i3: 0, pot_r1: 0, pot_r2: 0, pot_r3: 0, food_d1: 0, food_d2: 0, food_d3: 0, food_df1: 0, food_df2: 0, food_df3: 0, magic_stone: 0 },
             equipInventory: [], equipped: { head: null, shoulders: null, chest: null, arms: null, waist: null, legs: null, boots: null, necklace: null, ring1: null, ring2: null, ring3: null, ring4: null, weapon: null, cape: null },
             newItems: {}, shopGear: [], shopLastRefresh: 0,
-            attributes: { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 },
+            attributes: { hp: 0, tenacity: 0, agility: 0, willpower: 0, resistance: 0, reflexes: 0, fury: 0, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 },
             storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
             settings: { sound: true, music: true, autoBattleTargetPriority: 'easy', autoBattleUsables: [] },
             gender: 'male',
@@ -545,7 +545,7 @@ function loadGameAndContinue() {
         if(globalProgression.wellLastHealDate === undefined) globalProgression.wellLastHealDate = '';
         if(globalProgression.wellXpBattles === undefined) globalProgression.wellXpBattles = 0;
         if(globalProgression.wellDropBattles === undefined) globalProgression.wellDropBattles = 0;
-        if(globalProgression.attributes === undefined) globalProgression.attributes = { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0 };
+        if(globalProgression.attributes === undefined) globalProgression.attributes = { hp: 0, tenacity: 0, agility: 0, willpower: 0, resistance: 0, reflexes: 0, fury: 0, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 };
         if(globalProgression.shopGear === undefined) { globalProgression.shopGear = []; globalProgression.shopLastRefresh = 0; }
         if(globalProgression.settings === undefined) globalProgression.settings = { sound: true, music: true };
         if(globalProgression.settings.autoBattleTargetPriority === undefined) globalProgression.settings.autoBattleTargetPriority = 'easy';
@@ -722,7 +722,7 @@ function calculateMaxHp() {
     // Base HP from class, level scaling, and tree bonus
     let base = player.data.baseHp + (Math.max(0, player.lvl - 1) * 15) + player.treeBonusHp;
     // HP attribute: +0.5% max HP per point
-    let attrHpMult = 1 + ((a.hp || 1) * 0.005);
+    let attrHpMult = 1 + ((a.hp || 0) * 0.005);
     base = Math.floor(base * attrHpMult);
     // Apply HP Boost enhancements
     let hpBoostMult = 1;
@@ -745,7 +745,7 @@ function getBaseDamage() {
     // Raw Power: +2 base dmg per point; tree bonus flat dmg
     let baseDmg = player.data.baseDmg + ((a.rawPower || 0) * 2) + player.treeBonusDmg;
     // Willpower: +0.3% increased base damage per point
-    let willpowerMult = 1 + ((a.willpower || 1) * 0.003);
+    let willpowerMult = 1 + ((a.willpower || 0) * 0.003);
     baseDmg = Math.floor(baseDmg * willpowerMult);
     // Apply weapon base damage percentage bonus (from weaponBaseDmgPct property, 0.1% per level)
     let weapon = globalProgression.equipped ? globalProgression.equipped['weapon'] : null;
@@ -771,21 +771,7 @@ function getPlayerDef() {
 
 // Returns the permanent base attributes for each class (cannot go below these)
 function getClassBaseAttributes(classId) {
-    const base = { hp: 1, tenacity: 1, agility: 1, willpower: 1, resistance: 1, reflexes: 1, fury: 1, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 };
-    if (classId === 'warrior') {
-        return { ...base, hp: 10, fury: 5 };
-    } else if (classId === 'mage') {
-        return { ...base, reflexes: 10, force: 5 };
-    } else if (classId === 'paladin') {
-        return { ...base, agility: 10, revival: 5 };
-    } else if (classId === 'ninja') {
-        return { ...base, reflexes: 10, vampire: 5 };
-    } else if (classId === 'cleric') {
-        return { ...base, happiness: 5, revival: 5 };
-    } else if (classId === 'archer') {
-        return { ...base, reflexes: 10, force: 5 };
-    }
-    return base;
+    return { hp: 0, tenacity: 0, agility: 0, willpower: 0, resistance: 0, reflexes: 0, fury: 0, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 };
 }
 
 // Returns the per-class attribute caps
@@ -843,21 +829,40 @@ function showGenderSelect(classId) {
     if (classId === 'mage' && pendingNewGame &&
         !localStorage.getItem('EternalAscensionClassSave_mage') &&
         !localStorage.getItem('mageIntroVideoPlayed')) {
-        const iframe = document.getElementById('mage-intro-iframe');
-        if (iframe) {
-            iframe.src = 'https://www.youtube.com/embed/MXyka2u-2-o?autoplay=1&enablejsapi=1&rel=0';
+        const video = document.getElementById('mage-intro-video');
+        if (video) {
+            const src = document.getElementById('mage-intro-video-src');
+            if (src) src.src = 'assets/mage-intro.mp4';
+            video.load();
         }
         switchScreen('screen-mage-intro-video');
+        // Attach ended listener to auto-advance
+        if (video) {
+            video.onended = onMageVideoEnd;
+        }
         return;
     }
     switchScreen('screen-gender-select');
 }
 
+function playMageVideo() {
+    const video = document.getElementById('mage-intro-video');
+    const playBtn = document.getElementById('mage-video-play-btn');
+    if (video) {
+        video.play().then(() => {
+            if (playBtn) playBtn.style.display = 'none';
+        }).catch(err => {
+            console.warn('Video autoplay blocked:', err);
+        });
+    }
+}
+
 function onMageVideoEnd() {
     localStorage.setItem('mageIntroVideoPlayed', 'true');
-    const iframe = document.getElementById('mage-intro-iframe');
-    if (iframe) {
-        iframe.src = 'about:blank';
+    const video = document.getElementById('mage-intro-video');
+    if (video) {
+        video.pause();
+        video.src = '';
     }
     switchScreen('screen-gender-select');
 }
@@ -1514,15 +1519,20 @@ function gambleGold(amount) {
 }
 
 function checkLevelUp() {
-    if(player.lvl >= 500) return; // Level cap at 500
-    let xpNeeded = getXpForNextLevel(player.lvl);
-    if(player.xp >= xpNeeded) {
-        player.lvl++; player.xp -= xpNeeded; player.statPoints += 5; // 5 pts per level
+    let levelsGained = 0;
+    // Cap at 5 levels per call to prevent huge jumps from large XP gains (e.g. quest rewards)
+    const MAX_LEVELS_PER_CHECK = 5;
+    while(player.lvl < 500 && levelsGained < MAX_LEVELS_PER_CHECK) {
+        let xpNeeded = getXpForNextLevel(player.lvl);
+        if(player.xp < xpNeeded) break;
+        player.lvl++; player.xp -= xpNeeded; player.statPoints += 5;
         if(player.lvl % 2 === 0) player.skillPoints++;
+        levelsGained++;
+    }
+    if(levelsGained > 0) {
         player.maxHp = calculateMaxHp(); player.currentHp = player.maxHp;
         playSound('win');
         document.getElementById('hub-level-up-noti').classList.remove('hidden');
-        if(player.lvl < 500) checkLevelUp(); // Recursion in case of massive XP gain
     }
 }
 
@@ -1533,5 +1543,6 @@ window.loadGameAndContinue = loadGameAndContinue;
 window.selectGenderAndStart = selectGenderAndStart;
 window.showGenderSelect = showGenderSelect;
 window.onMageVideoEnd = onMageVideoEnd;
+window.playMageVideo = playMageVideo;
 console.log("Game.js loaded successfully");
 
