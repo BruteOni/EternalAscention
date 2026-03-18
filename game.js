@@ -336,7 +336,8 @@ let player = {
     nodeEnhancements: {}
 };
 
-let enemies = []; let activeTargetIndex = 0; let currentMode = 'none'; 
+let enemies = []; let savedEnemies = {}; let activeTargetIndex = 0; let currentMode = 'none'; 
+const NON_PERSIST_MODES = ['quest', 'training', 'graveyard', 'invasion'];
 let activeDungeonTier = 1; let activeDungeonRoom = 1; 
 let isPlayerTurn = true; let combatLog = []; let isAutoBattle = false; let combatActive = false; let battleEnding = false;
 let activeGraveyardBoss = null;

@@ -2959,6 +2959,11 @@ function returnToTown() {
     combatActive = false;
     battleEnding = false;
     isAutoBattle = false;
+    // Save living enemies for persistence (exclude special modes)
+    if (!NON_PERSIST_MODES.includes(currentMode) && enemies.length > 0 && enemies.some(e => e.currentHp > 0)) {
+        let persistKey = currentMode === 'dungeon' ? `dungeon_${activeDungeonTier}_${activeDungeonRoom}` : currentMode;
+        savedEnemies[persistKey] = enemies.map(e => JSON.parse(JSON.stringify(e)));
+    }
     enemies = []; // Clear enemies so fresh ones spawn next battle
     const btn = document.getElementById('btn-auto');
     if(btn) { btn.classList.remove('auto-on'); btn.disabled = false; btn.classList.remove('opacity-50'); }
@@ -2978,6 +2983,35 @@ function showDamageNumber(targetId, damage, isCrit) {
 
 
 function generateEnemies() {
+    // Check for persisted enemies in this mode (exclude special modes)
+    if (!NON_PERSIST_MODES.includes(currentMode)) {
+        let persistKey = currentMode === 'dungeon' ? `dungeon_${activeDungeonTier}_${activeDungeonRoom}` : currentMode;
+        if (savedEnemies[persistKey]) {
+            let saved = savedEnemies[persistKey];
+            let alive = saved.filter(e => e.currentHp > 0);
+            if (alive.length > 0) {
+                enemies = alive.map(e => {
+                    let restored = JSON.parse(JSON.stringify(e));
+                    restored.bleedStacks = 0; restored.bleedTurns = 0;
+                    restored.burnStacks = 0; restored.burnTurns = 0;
+                    restored.poisonStacks = 0; restored.poisonTurns = 0;
+                    restored.defReduction = 0; restored.defReductionTurns = 0;
+                    restored.stunned = 0; restored.healBlock = 0;
+                    restored.dmgTakenMult = 1; restored.dmgTakenTurns = 0;
+                    restored.dodgeTurns = 0; restored.skipChance = 0; restored.skipTurns = 0;
+                    restored.shield = 0;
+                    return restored;
+                });
+                activeTargetIndex = 0;
+                if (enemies.some(e => e.isBoss)) playBossMusic();
+                else playBattleMusic();
+                return;
+            } else {
+                delete savedEnemies[persistKey];
+            }
+        }
+    }
+
     enemies = [];
     
     if (currentMode === 'quest') { 
@@ -3939,8 +3973,8 @@ function usePlayerSkill(slotIndex) {
                 
                 // Armor Pierce: reflexes 0.3% per point + bonusArmorPierce from accessories
                 let armorPierce = (a.reflexes || 0) * 0.003 + getEquipBonusStat('bonusArmorPierce');
-                let effectiveDefReduction = Math.max(0, (target.defReduction || 0) - armorPierce);
-                let defMult = 1 - Math.min(0.95, effectiveDefReduction); 
+                let defDownDebuff = target.defReduction || 0;
+                let defMult = 1 + Math.min(0.95, armorPierce + defDownDebuff);
                 let hitDmg = Math.floor(scaledPower * defMult * (target.dmgTakenMult || 1));
                 if(!Number.isFinite(hitDmg) || hitDmg < 0) hitDmg = 0;
                 
@@ -4660,6 +4694,10 @@ function endBattle(playerWon) {
         playSound('win');
         let killCount = enemies.length;
 
+        // Clear persisted enemies for this mode since all were defeated
+        let persistKey = currentMode === 'dungeon' ? `dungeon_${activeDungeonTier}_${activeDungeonRoom}` : currentMode;
+        if (savedEnemies[persistKey]) delete savedEnemies[persistKey];
+
         // Progress tracking: win
         let ps = ensureProgressStats();
         ps.battlesWon++;
@@ -4955,7 +4993,12 @@ function endBattle(playerWon) {
         psL.currentWinStreak = 0;
         isAutoBattle = false;
         const autoBtn = document.getElementById('btn-auto'); if(autoBtn) autoBtn.classList.remove('auto-on');
-        enemies = []; // Clear enemies so fresh ones spawn next battle
+        // Save living enemies for persistence on defeat (exclude special modes)
+        if (!NON_PERSIST_MODES.includes(currentMode) && enemies.length > 0 && enemies.some(e => e.currentHp > 0)) {
+            let persistKey = currentMode === 'dungeon' ? `dungeon_${activeDungeonTier}_${activeDungeonRoom}` : currentMode;
+            savedEnemies[persistKey] = enemies.map(e => JSON.parse(JSON.stringify(e)));
+        }
+        enemies = [];
         saveGame();
         title.innerText = "💀 DEFEAT";
         title.className = "text-5xl font-bold mb-2 text-red-500 drop-shadow-lg";
