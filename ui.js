@@ -2005,6 +2005,8 @@ function regenPetBattleEnergy() {
     }
 }
 
+const MAX_PET_FAVORITES = 3;
+
 function togglePetFavorite(petId) {
     if(!globalProgression.petFavorites) globalProgression.petFavorites = [];
     let favs = globalProgression.petFavorites;
@@ -2012,8 +2014,8 @@ function togglePetFavorite(petId) {
     if(idx !== -1) {
         favs.splice(idx, 1);
     } else {
-        if(favs.length >= 3) {
-            alert('You can only have 3 favorite pets! Remove one first.');
+        if(favs.length >= MAX_PET_FAVORITES) {
+            alert(`You can only have ${MAX_PET_FAVORITES} favorite pets! Remove one first.`);
             return;
         }
         favs.push(petId);
@@ -4667,14 +4669,6 @@ function endBattle(playerWon) {
             if(hasEnergy) {
                 btnNext.innerText = `Next Wave (⚡1) — ${invasionTotalKills} kills`;
                 btnNext.classList.remove('hidden');
-                btnNext.onclick = () => {
-                    if(consumeEnergy(1)) {
-                        startBattle(true);
-                    } else {
-                        alert('You ran out of energy! Rest to recover.');
-                        returnToTown();
-                    }
-                };
             } else {
                 btnNext.classList.add('hidden');
             }
@@ -4933,10 +4927,12 @@ function handleEndNext() {
         }
         else { returnToTown(); }
     } else if (currentMode === 'invasion') {
-        if(invasionTotalKills < invasionKillGoal && invasionSpawned < invasionKillGoal) {
-            startBattle(false); // spawn next wave
+        // Invasion is continuous — check energy before starting next wave
+        if(consumeEnergy(1)) {
+            startBattle(true);
         } else {
-            showPortal();
+            alert('You ran out of energy! Rest to recover.');
+            returnToTown();
         }
     } else {
         if(!consumeEnergy(1)) { returnToTown(); return; }

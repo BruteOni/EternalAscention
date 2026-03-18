@@ -871,7 +871,9 @@ function selectGenderAndStart(gender, chosenAvatar) {
             globalProgression = data.global;
             player = data.pState;
             // Apply defaults for any missing fields (same as loadGameAndContinue)
-            applyDefaults(globalProgression, { petFavorites: [], magicStones: 0 });
+            applyDefaults(globalProgression, { petFavorites: [] });
+            if(!globalProgression.inventory) globalProgression.inventory = {};
+            if(globalProgression.inventory.magic_stone === undefined) globalProgression.inventory.magic_stone = 0;
             applyDefaults(player, { nodeEnhancements: {} });
             player.classId = pendingClassId;
             player.data = CLASSES[player.classId];
