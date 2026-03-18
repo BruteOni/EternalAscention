@@ -1532,5 +1532,6 @@ window.confirmNewGameYes = confirmNewGameYes;
 window.loadGameAndContinue = loadGameAndContinue;
 window.selectGenderAndStart = selectGenderAndStart;
 window.showGenderSelect = showGenderSelect;
+window.onMageVideoEnd = onMageVideoEnd;
 console.log("Game.js loaded successfully");
 
