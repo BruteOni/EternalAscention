@@ -752,6 +752,7 @@ function buildSkillTreePath(pathName, progressProp, skillStart, pathColor, pathL
 }
 
 function showSkillTree() {
+    rerollOnCooldown = false;  // Safety reset to prevent stuck state
     switchScreen('screen-skilltree');
     try {
         if (!player || !player.data) return;
@@ -1178,16 +1179,26 @@ function rerollEnhancement(path, nodeIndex) {
         let scrollPositions = {};
         document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { scrollPositions[el.id] = el.scrollTop; });
         setTimeout(() => {
-            rerollOnCooldown = false;
-            showSkillTree();
-            document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
+            try {
+                rerollOnCooldown = false;
+                showSkillTree();
+                document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
+            } catch(e) {
+                rerollOnCooldown = false;
+                console.error('Error re-rendering skill tree after reroll:', e);
+            }
         }, 500);
     } else {
         let scrollPositions = {};
         document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { scrollPositions[el.id] = el.scrollTop; });
-        rerollOnCooldown = false;
-        showSkillTree();
-        document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
+        try {
+            rerollOnCooldown = false;
+            showSkillTree();
+            document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
+        } catch(e) {
+            rerollOnCooldown = false;
+            console.error('Error re-rendering skill tree after reroll:', e);
+        }
     }
 }
 

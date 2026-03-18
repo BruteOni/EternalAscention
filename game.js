@@ -843,8 +843,9 @@ function showGenderSelect(classId) {
         const video = document.getElementById('mage-intro-video');
         if (video) {
             const src = document.getElementById('mage-intro-video-src');
-            if (src) src.src = 'mage.mp4';
+            if (src) src.src = 'Mage.mp4';
             video.load();
+            video.play().catch(err => console.warn('Autoplay blocked:', err));
             video.onended = onMageVideoEnd;
         }
         switchScreen('screen-mage-intro-video');
