@@ -1,6 +1,19 @@
 // --- MAIN MENU & SCREEN NAVIGATION ---
 // Note: confirmNewGame, closeConfirmNewGame, confirmNewGameYes, and switchScreen are defined in game.js.
 
+// No-Energy animation overlay
+function showNoEnergyAnimation() {
+    let existing = document.getElementById('no-energy-overlay');
+    if(existing) existing.remove();
+    let overlay = document.createElement('div');
+    overlay.className = 'no-energy-overlay';
+    overlay.id = 'no-energy-overlay';
+    overlay.innerHTML = '<div class="no-energy-emoji">⚡</div><div class="no-energy-label">No Energy!</div>';
+    document.body.appendChild(overlay);
+    playSound('lose');
+    setTimeout(() => { let el = document.getElementById('no-energy-overlay'); if(el) el.remove(); }, 1500);
+}
+
 // Fixed background color per skill slot index (slot 1=grey, slots 2-5=green; slot 6/WoH is always yellow)
 const SLOT_FIXED_COLORS = ['bg-gray-700', 'bg-green-700', 'bg-green-700', 'bg-green-700', 'bg-green-700'];
 
@@ -32,25 +45,25 @@ function showCharacter() {
     document.getElementById('char-stat-gs').innerText = totalGS;
 
     // Dodge: resistance 0.25% per point + gear bonusDodge
-    document.getElementById('char-stat-dodge').innerText = `${(((a.resistance || 1) * 0.0025 + getEquipBonusStat('bonusDodge')) * 100).toFixed(1)}%`;
+    document.getElementById('char-stat-dodge').innerText = `${(((a.resistance || 0) * 0.0025 + getEquipBonusStat('bonusDodge')) * 100).toFixed(1)}%`;
     // Hit: 80% base + reflexes 0.1% per point + gear bonusHit
-    document.getElementById('char-stat-hit').innerText = `${Math.min(100, (80 + ((a.reflexes || 1) * 0.1) + (getEquipBonusStat('bonusHit') * 100))).toFixed(1)}%`;
+    document.getElementById('char-stat-hit').innerText = `${Math.min(100, (80 + ((a.reflexes || 0) * 0.1) + (getEquipBonusStat('bonusHit') * 100))).toFixed(1)}%`;
     // Crit: force 0.5% per point + gear bonusCritRate, capped at 75%
     document.getElementById('char-stat-crit').innerText = `${Math.min(75, ((a.force || 0) * 0.5) + (getEquipBonusStat('bonusCritRate') * 100)).toFixed(1)}%`;
     // Crit Dmg: fury 0.25% per point + gear bonusCritDmg
-    document.getElementById('char-stat-critdmg').innerText = `${(100 + ((a.fury || 1) * 0.25) + (getEquipBonusStat('bonusCritDmg') * 100)).toFixed(0)}%`;
+    document.getElementById('char-stat-critdmg').innerText = `${(100 + ((a.fury || 0) * 0.25) + (getEquipBonusStat('bonusCritDmg') * 100)).toFixed(0)}%`;
     // Dmg Reduction: tenacity 0.3% per point + gear bonusDmgReduction
-    document.getElementById('char-stat-dmgred').innerText = `${(((a.tenacity || 1) * 0.003 + getEquipBonusStat('bonusDmgReduction')) * 100).toFixed(1)}%`;
+    document.getElementById('char-stat-dmgred').innerText = `${(((a.tenacity || 0) * 0.003 + getEquipBonusStat('bonusDmgReduction')) * 100).toFixed(1)}%`;
     // Dmg Reflect: gear bonusDmgReflect only (tenacity no longer directly gives reflect)
     document.getElementById('char-stat-reflect').innerText = `${(getEquipBonusStat('bonusDmgReflect') * 100).toFixed(2)}%`;
     // Skill Dmg: gear bonusSkillDmg
     document.getElementById('char-stat-skilldmg').innerText = `${(getEquipBonusStat('bonusSkillDmg') * 100).toFixed(1)}%`;
     // Armor Pierce: reflexes 0.3% per point + gear bonusArmorPierce
-    document.getElementById('char-stat-mitigation').innerText = `${(((a.reflexes || 1) * 0.003 + getEquipBonusStat('bonusArmorPierce')) * 100).toFixed(1)}%`;
+    document.getElementById('char-stat-mitigation').innerText = `${(((a.reflexes || 0) * 0.003 + getEquipBonusStat('bonusArmorPierce')) * 100).toFixed(1)}%`;
     // Life Steal: vampire 0.25% per point + gear bonusVamp
     if(document.getElementById('char-stat-lifesteal')) document.getElementById('char-stat-lifesteal').innerText = `${(((a.vampire || 0) * 0.0025 + getEquipBonusStat('bonusVamp')) * 100).toFixed(2)}%`;
     // Counter Chance: agility 0.25% per point
-    if(document.getElementById('char-stat-counter')) document.getElementById('char-stat-counter').innerText = `${(((a.agility || 1) * 0.0025) * 100).toFixed(2)}%`;
+    if(document.getElementById('char-stat-counter')) document.getElementById('char-stat-counter').innerText = `${(((a.agility || 0) * 0.0025) * 100).toFixed(2)}%`;
     
     const pClass = document.getElementById('char-class-name'); if(pClass) pClass.innerText = player.data.name;
     const pAv = document.getElementById('char-avatar-display'); if(pAv) setAvatarDisplay('char-avatar-display', player.data.avatar);
@@ -220,12 +233,10 @@ function showAttributes() {
     ];
 
     attrDefs.forEach(a => {
-        let zeroBaseAttrs = ['happiness', 'rawPower', 'force', 'revival', 'vampire', 'defense'];
-        let isZeroBase = zeroBaseAttrs.includes(a.id);
-        let currentVal = globalProgression.attributes[a.id] !== undefined ? globalProgression.attributes[a.id] : (isZeroBase ? 0 : 1);
+        let currentVal = globalProgression.attributes[a.id] !== undefined ? globalProgression.attributes[a.id] : 0;
         let classId = player.classId || 'warrior';
         let classBase = getClassBaseAttributes(classId);
-        let minVal = isZeroBase ? (classBase[a.id] || 0) : (classBase[a.id] || 1);
+        let minVal = classBase[a.id] !== undefined ? classBase[a.id] : 0;
         let attrCap = getClassAttrCap(classId, a.id);
         let cost = 1;
 
@@ -249,7 +260,7 @@ function showAttributes() {
 
         let capDisplay = ` / ${attrCap}`;
         let levelDisplay = `Lv. ${currentVal}${capDisplay}`;
-        let baseNote = (minVal > 1) ? ` <span class="text-yellow-500 text-[9px]">(base ${minVal})</span>` : '';
+        let baseNote = (minVal > 0) ? ` <span class="text-yellow-500 text-[9px]">(base ${minVal})</span>` : '';
 
         let btn = document.createElement('div');
         btn.className = "flex flex-col bg-gray-900 p-2 rounded-lg border border-gray-700 shadow-sm";
@@ -285,9 +296,7 @@ function allocateAttribute(id, count) {
     let attrCap = getClassAttrCap(classId, id);
 
     let classBase = getClassBaseAttributes(classId);
-    // New attrs (rawPower, force, revival, vampire, defense) start at 0; happiness starts at 0; others at 1
-    let zeroBaseAttrs = ['happiness', 'rawPower', 'force', 'revival', 'vampire', 'defense'];
-    let defaultMin = zeroBaseAttrs.includes(id) ? 0 : 1;
+    let defaultMin = classBase[id] !== undefined ? classBase[id] : 0;
     let currentVal = globalProgression.attributes[id] !== undefined ? globalProgression.attributes[id] : defaultMin;
     let canAllocate = Math.min(count, attrCap - currentVal, Math.floor(player.statPoints / cost));
     if (canAllocate <= 0) return;
@@ -304,9 +313,8 @@ function deallocateAttribute(id, count) {
     count = count || 1;
     let classId = player.classId || 'warrior';
     let classBase = getClassBaseAttributes(classId);
-    let zeroBaseAttrs = ['happiness', 'rawPower', 'force', 'revival', 'vampire', 'defense'];
-    let defaultMin = zeroBaseAttrs.includes(id) ? 0 : 1;
-    let minVal = (classBase[id] !== undefined) ? classBase[id] : defaultMin;
+    let defaultMin = classBase[id] !== undefined ? classBase[id] : 0;
+    let minVal = defaultMin;
     let currentVal = globalProgression.attributes[id] !== undefined ? globalProgression.attributes[id] : minVal;
     let canRemove = Math.min(count, currentVal - minVal);
     if (canRemove <= 0) return;
@@ -323,17 +331,14 @@ function deallocateAttribute(id, count) {
 function respecAttributes() {
     let classId = player.classId || 'warrior';
     let classBase = getClassBaseAttributes(classId);
-    const normalAttrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'rawPower', 'force', 'revival', 'vampire', 'defense'];
+    const normalAttrs = ['hp', 'tenacity', 'agility', 'willpower', 'resistance', 'reflexes', 'fury', 'rawPower', 'force', 'revival', 'vampire', 'defense', 'happiness'];
     let totalRefund = 0;
     normalAttrs.forEach(stat => {
-        let currentVal = globalProgression.attributes[stat] !== undefined ? globalProgression.attributes[stat] : (classBase[stat] || 0);
+        let currentVal = globalProgression.attributes[stat] !== undefined ? globalProgression.attributes[stat] : 0;
         let baseVal = classBase[stat] !== undefined ? classBase[stat] : 0;
         totalRefund += Math.max(0, currentVal - baseVal);
         globalProgression.attributes[stat] = baseVal;
     });
-    let happinessVal = globalProgression.attributes['happiness'] || 0;
-    totalRefund += happinessVal;
-    globalProgression.attributes['happiness'] = 0;
     player.statPoints += totalRefund;
     player.maxHp = calculateMaxHp(); player.currentHp = player.maxHp;
     saveGame();
@@ -718,6 +723,7 @@ function buildSkillTreePath(pathName, progressProp, skillStart, pathColor, pathL
     section.appendChild(header);
 
     let scrollBox = document.createElement('div');
+    scrollBox.id = `tree-scroll-${pathName}`;
     scrollBox.className = 'flex-1 overflow-y-auto p-1 rounded-xl bg-gray-900 border border-gray-700 shadow-inner';
     scrollBox.style.maxHeight = '70vh';
 
@@ -995,14 +1001,31 @@ function unlockNextNode(path, index=0) {
     
     player.maxHp = calculateMaxHp(); 
     playSound('win');
-    saveGame(); 
+    saveGame();
+    // Save scroll positions before re-rendering tree
+    let scrollPositions = {};
+    document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { scrollPositions[el.id] = el.scrollTop; });
+    // Capture path and index for success animation
+    let _enhPath = path, _enhIndex = index;
     showSkillTree();
+    // Restore scroll positions
+    document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
+    // Show success animation on newly unlocked node
+    let enhNodeEl = document.getElementById(`node-enh-${_enhPath}-${_enhIndex}`);
+    if(enhNodeEl) {
+        enhNodeEl.classList.add('enh-reroll-success');
+        showFloatText(`node-enh-${_enhPath}-${_enhIndex}`, '✨ ENHANCED!', 'text-green-400');
+    }
 }
 
 function unlockInfinite(stat) {
     if(player.skillPoints < 1) return; player.skillPoints--;
     if(stat === 'hp') { player.treeBonusHp += 20; player.currentHp += 20; } if(stat === 'dmg') player.treeBonusDmg += 5; if(stat === 'def') player.treeBonusDef += 2;
-    player.maxHp = calculateMaxHp(); saveGame(); showSkillTree();
+    player.maxHp = calculateMaxHp(); saveGame();
+    let scrollPositions = {};
+    document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { scrollPositions[el.id] = el.scrollTop; });
+    showSkillTree();
+    document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
 }
 
 function rollEnhancement() {
@@ -1151,10 +1174,19 @@ function rerollEnhancement(path, nodeIndex) {
         let animClass = success ? 'enh-reroll-success' : 'enh-reroll-fail';
         nodeEl.classList.add(animClass);
         showFloatText(`node-enh-${path}-${nodeIndex}`, success ? '⬆️ UPGRADED!' : '❌ FAILED', success ? 'text-green-400' : 'text-red-400');
-        setTimeout(() => { rerollOnCooldown = false; showSkillTree(); }, 500);
+        let scrollPositions = {};
+        document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { scrollPositions[el.id] = el.scrollTop; });
+        setTimeout(() => {
+            rerollOnCooldown = false;
+            showSkillTree();
+            document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
+        }, 500);
     } else {
+        let scrollPositions = {};
+        document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { scrollPositions[el.id] = el.scrollTop; });
         rerollOnCooldown = false;
         showSkillTree();
+        document.querySelectorAll('[id^="tree-scroll-"]').forEach(el => { if(scrollPositions[el.id] !== undefined) el.scrollTop = scrollPositions[el.id]; });
     }
 }
 
@@ -1439,8 +1471,8 @@ function generateShopGear() {
 }
 
 function refreshShopGear() {
-    if(globalProgression.gold >= 20) {
-        globalProgression.gold -= 20;
+    if(globalProgression.gold >= 100) {
+        globalProgression.gold -= 100;
         playSound('click');
         globalProgression.shopLastRefresh = Date.now();
         generateShopGear();
@@ -1653,17 +1685,18 @@ function workshopEnhance(btn) {
 function showBurglar() {
     const today = new Date().toDateString();
     if(globalProgression.burglarLastPurchaseDate !== today) {
-        globalProgression.burglarDailyPurchases = 0;
+        globalProgression.burglarDailyPurchasesPerItem = {};
         globalProgression.burglarLastPurchaseDate = today;
     }
+    if(!globalProgression.burglarDailyPurchasesPerItem) globalProgression.burglarDailyPurchasesPerItem = {};
     document.getElementById('burglar-gold-display').innerText = globalProgression.gold;
-    document.getElementById('burglar-daily-count').innerText = globalProgression.burglarDailyPurchases || 0;
 
     const list = document.getElementById('burglar-items-list');
     list.innerHTML = '';
 
     Object.values(USABLE_ITEMS).forEach(item => {
-        let canBuy = globalProgression.gold >= item.price && (globalProgression.burglarDailyPurchases || 0) < 2;
+        let itemCount = (globalProgression.burglarDailyPurchasesPerItem[item.id] || 0);
+        let canBuy = globalProgression.gold >= item.price && itemCount < 5;
         let ownedAmt = (globalProgression.usableItems || {})[item.id] || 0;
 
         let card = document.createElement('div');
@@ -1678,7 +1711,7 @@ function showBurglar() {
                         ${item.cooldown > 0 ? `<span class="text-blue-300">⏱ ${item.cooldown}t cooldown</span>` : '<span class="text-green-300">⚡ No cooldown</span>'}
                         ${item.immuneToCDR ? '<span class="text-yellow-400 ml-1">🔒 CDR immune</span>' : ''}
                     </div>
-                    <div class="text-[10px] text-gray-500">Owned: ${ownedAmt}</div>
+                    <div class="text-[10px] text-gray-500">Owned: ${ownedAmt} · Today: ${itemCount}/5</div>
                 </div>
             </div>
             <button onclick="burglarBuy('${item.id}')" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 py-2 rounded-lg transition active:scale-95 text-sm flex flex-col items-center border border-red-500 ${canBuy ? '' : 'opacity-50 cursor-not-allowed'}" ${canBuy ? '' : 'disabled'}>
@@ -1693,10 +1726,11 @@ function showBurglar() {
 function burglarBuy(itemId) {
     const today = new Date().toDateString();
     if(globalProgression.burglarLastPurchaseDate !== today) {
-        globalProgression.burglarDailyPurchases = 0;
+        globalProgression.burglarDailyPurchasesPerItem = {};
         globalProgression.burglarLastPurchaseDate = today;
     }
-    if((globalProgression.burglarDailyPurchases || 0) >= 2) return;
+    if(!globalProgression.burglarDailyPurchasesPerItem) globalProgression.burglarDailyPurchasesPerItem = {};
+    if((globalProgression.burglarDailyPurchasesPerItem[itemId] || 0) >= 5) return;
     let item = USABLE_ITEMS[itemId];
     if(!item || globalProgression.gold < item.price) return;
 
@@ -1710,7 +1744,7 @@ function burglarBuy(itemId) {
         if (player.equippedUsables[i] === null) { emptySlot = i; break; }
     }
     if (emptySlot !== -1) player.equippedUsables[emptySlot] = itemId;
-    globalProgression.burglarDailyPurchases = (globalProgression.burglarDailyPurchases || 0) + 1;
+    globalProgression.burglarDailyPurchasesPerItem[itemId] = (globalProgression.burglarDailyPurchasesPerItem[itemId] || 0) + 1;
     let ps = ensureProgressStats(); ps.goldSpent += item.price;
     playSound('win');
     saveGame();
@@ -1970,8 +2004,7 @@ function showInvasion() {
 
 function startInvasion() {
     if(!consumeEnergy(1)) {
-        playSound('lose');
-        alert('You need at least 1 energy to enter the Invasion!');
+        showNoEnergyAnimation();
         return;
     }
     invasionTotalKills = 0;
@@ -2912,6 +2945,7 @@ function toggleAuto() {
 }
 function returnToTown() {
     combatActive = false;
+    battleEnding = false;
     isAutoBattle = false;
     const btn = document.getElementById('btn-auto');
     if(btn) { btn.classList.remove('auto-on'); btn.disabled = false; btn.classList.remove('opacity-50'); }
@@ -3107,6 +3141,7 @@ function startBattle(isNewEncounter = false) {
         returnToTown();
         return;
     }
+    battleEnding = false;
     combatActive = true; generateEnemies();
     if (isNewEncounter) { 
         // Do NOT replenish HP — player enters with their current HP
@@ -3580,8 +3615,8 @@ function renderSkills() {
     grid.appendChild(makeSkillBtn(0, false, true));
     grid.appendChild(makeSkillBtn(1, true, false));
     grid.appendChild(makeSkillBtn(2, true, false));
-    grid.appendChild(makeSkillBtn(3, false, false));
-    grid.appendChild(makeSkillBtn(4, false, false));
+    grid.appendChild(makeSkillBtn(3, true, false));
+    grid.appendChild(makeSkillBtn(4, true, false));
 
     // Way of the Heavens (skill 6) — always full-width at bottom if unlocked (equipped or not)
     if (wohFound || wohUnlocked) {
@@ -3869,7 +3904,7 @@ function usePlayerSkill(slotIndex) {
                 setTimeout(() => triggerAnim(`enemy-card-${tIdx}`, 'anim-shake'), 150 * (i+1));
                 
                 // Hit chance: 80% base + reflexes 0.1% per point + gear bonusHit
-                let hitChance = 0.80 + ((a.reflexes || 1) * 0.001) + getEquipBonusStat('bonusHit');
+                let hitChance = 0.80 + ((a.reflexes || 0) * 0.001) + getEquipBonusStat('bonusHit');
                 if(target.dodgeTurns > 0 || Math.random() > hitChance) {
                     addLog(`Missed ${target.name}!`, "text-gray-500");
                     showFloatText(`enemy-card-${tIdx}`, `MISS`, 'text-gray-400');
@@ -3878,7 +3913,7 @@ function usePlayerSkill(slotIndex) {
                 }
                 
                 // Armor Pierce: reflexes 0.3% per point + bonusArmorPierce from accessories
-                let armorPierce = (a.reflexes || 1) * 0.003 + getEquipBonusStat('bonusArmorPierce');
+                let armorPierce = (a.reflexes || 0) * 0.003 + getEquipBonusStat('bonusArmorPierce');
                 let effectiveDefReduction = Math.max(0, (target.defReduction || 0) - armorPierce);
                 let defMult = 1 - Math.min(0.95, effectiveDefReduction); 
                 let hitDmg = Math.floor(scaledPower * defMult * (target.dmgTakenMult || 1));
@@ -3910,7 +3945,7 @@ function usePlayerSkill(slotIndex) {
                 let isCrit = Math.random() < critChance;
                 if(isCrit) {
                     // Crit damage: fury 0.25% per point + gear bonusCritDmg
-                    let critMult = (100 + ((a.fury || 1) * 0.25) + (getEquipBonusStat('bonusCritDmg') * 100)) / 100;
+                    let critMult = (100 + ((a.fury || 0) * 0.25) + (getEquipBonusStat('bonusCritDmg') * 100)) / 100;
                     hitDmg = Math.floor(hitDmg * critMult);
                     addLog(`CRITICAL HIT!`, "text-yellow-400 font-bold");
                     playSound('crit');
@@ -4381,7 +4416,7 @@ function dealDamageToPlayer(baseDmg, attackerEnemy, isCritHit = false) {
     }
 
     // Dodge: resistance 0.25% per point + gear bonusDodge
-    let dodgeChance = (a.resistance || 1) * 0.0025 + getEquipBonusStat('bonusDodge');
+    let dodgeChance = (a.resistance || 0) * 0.0025 + getEquipBonusStat('bonusDodge');
     // Check percentage dodge buff (Bandaid)
     let dodgePctBuff = player.activeBuffs ? player.activeBuffs.find(b => b.type === 'dodge_pct') : null;
     if(dodgePctBuff) dodgeChance += dodgePctBuff.val;
@@ -4428,7 +4463,7 @@ function dealDamageToPlayer(baseDmg, attackerEnemy, isCritHit = false) {
     if (player.activeBuffs) player.activeBuffs.filter(b => b.type === 'def' || b.type === 'def_down').forEach(b => buffDefMult *= b.val);
     
     // Damage reduction: tenacity 0.3% per point + gear bonusDmgReduction
-    let tenacityReduction = 1 - ((a.tenacity || 1) * 0.003 + getEquipBonusStat('bonusDmgReduction'));
+    let tenacityReduction = 1 - ((a.tenacity || 0) * 0.003 + getEquipBonusStat('bonusDmgReduction'));
     let dmg = Math.floor(baseDmg * tenacityReduction);
     
     // Divine Shield enhancement
@@ -4530,7 +4565,7 @@ function dealDamageToPlayer(baseDmg, attackerEnemy, isCritHit = false) {
 
     // Counter Attack: agility 0.25% per point + bonusCounterChance from accessories
     if(player.currentHp > 0 && attackerEnemy && attackerEnemy.currentHp > 0) {
-        let counterChance = ((a.agility || 1) * 0.0025) + getEquipBonusStat('bonusCounterChance');
+        let counterChance = ((a.agility || 0) * 0.0025) + getEquipBonusStat('bonusCounterChance');
         if(counterChance > 0 && Math.random() < counterChance) {
             let counterDmg = Math.max(1, getBaseDamage());
             attackerEnemy.currentHp = Math.max(0, attackerEnemy.currentHp - counterDmg);
@@ -4579,7 +4614,8 @@ function startPlayerTurn() {
 
 // --- BATTLE REWARDS ---
 function endBattle(playerWon) {
-    if(!combatActive) return;  // Already ended — prevent double-fire
+    if(!combatActive || battleEnding) return;  // Already ended or ending — prevent double-fire
+    battleEnding = true;
     stopMusic();
     combatActive = false; 
     
@@ -4931,11 +4967,11 @@ function handleEndNext() {
         if(consumeEnergy(1)) {
             startBattle(true);
         } else {
-            alert('You ran out of energy! Rest to recover.');
+            showNoEnergyAnimation();
             returnToTown();
         }
     } else {
-        if(!consumeEnergy(1)) { returnToTown(); return; }
+        if(!consumeEnergy(1)) { showNoEnergyAnimation(); returnToTown(); return; }
         startBattle(true);
     }
 }

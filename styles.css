@@ -291,3 +291,16 @@ body { margin: 0; padding: 0; overflow: hidden; background-color: #111; color: w
     transform: translateX(3px);
 }
 
+/* No-Energy Animation */
+.no-energy-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 9999;
+    animation: no-energy-fade 1.5s ease-out forwards;
+    pointer-events: none;
+}
+.no-energy-emoji { font-size: 4rem; animation: no-energy-pulse 0.3s ease-in-out 3; }
+.no-energy-label { color: #ef4444; font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem; }
+@keyframes no-energy-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+@keyframes no-energy-fade { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
