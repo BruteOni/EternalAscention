@@ -1218,7 +1218,7 @@ function useWayOfHeavens() {
         e.bleedTurns = Math.max(e.bleedTurns || 0, 3);
         e.burnTurns = Math.max(e.burnTurns || 0, 1);
         e.poisonTurns = Math.max(e.poisonTurns || 0, 3);
-        showFloatText(`enemy-card-${i}`, `-${dmg}`, 'text-yellow-400');
+        showDamageNumber(`enemy-card-${i}`, dmg, false);
     });
     player.wayOfHeavensCooldown = 10;
     addLog('Way of the Heavens! Strike all enemies for Base Damage + 20% HP + Bleed, Burn, Poison!', 'text-yellow-400');
@@ -2959,6 +2959,7 @@ function returnToTown() {
     combatActive = false;
     battleEnding = false;
     isAutoBattle = false;
+    enemies = []; // Clear enemies so fresh ones spawn next battle
     const btn = document.getElementById('btn-auto');
     if(btn) { btn.classList.remove('auto-on'); btn.disabled = false; btn.classList.remove('opacity-50'); }
     showHub();
@@ -3346,6 +3347,7 @@ function useUsableItem(key) {
             target.currentHp = Math.max(0, target.currentHp - dmg);
             addLog(`💣 Bomb! Dealt ${dmg} damage to ${target.name}!`, 'text-orange-400');
             showFloatText('enemies-container', `-${dmg}`, 'text-orange-400');
+            showDamageNumber(`enemy-card-${activeTargetIndex}`, dmg, false);
             playSound('hit');
             break;
         }
@@ -3361,6 +3363,7 @@ function useUsableItem(key) {
             target.bleedStacks = (target.bleedStacks || 0) + 2;
             target.bleedTurns = Math.max(target.bleedTurns || 0, 3);
             addLog(`🔪 Knife! ${dmg} damage + 2 bleed to ${target.name}!`, 'text-red-400');
+            showDamageNumber(`enemy-card-${activeTargetIndex}`, dmg, false);
             playSound('hit');
             break;
         }
@@ -3394,22 +3397,24 @@ function useUsableItem(key) {
             break;
         }
         case 'distraction': {
-            enemies.forEach(e => {
+            enemies.forEach((e, i) => {
                 if(e.currentHp > 0) {
                     let selfDmg = Math.floor(e.baseDmg || 10);
                     e.currentHp = Math.max(0, e.currentHp - selfDmg);
                     addLog(`🎭 ${e.name} attacks itself for ${selfDmg}!`, 'text-yellow-400');
+                    showDamageNumber(`enemy-card-${i}`, selfDmg, false);
                 }
             });
             playSound('hit');
             break;
         }
         case 'bud_butt': {
-            enemies.forEach(e => {
+            enemies.forEach((e, i) => {
                 if(e.currentHp > 0) {
                     let dmg = Math.floor(e.maxHp * 0.10);
                     e.currentHp = Math.max(0, e.currentHp - dmg);
                     addLog(`💩 Mud Butt! ${dmg} damage to ${e.name}!`, 'text-pink-400');
+                    showDamageNumber(`enemy-card-${i}`, dmg, false);
                 }
             });
             playSound('hit');
@@ -4950,6 +4955,7 @@ function endBattle(playerWon) {
         psL.currentWinStreak = 0;
         isAutoBattle = false;
         const autoBtn = document.getElementById('btn-auto'); if(autoBtn) autoBtn.classList.remove('auto-on');
+        enemies = []; // Clear enemies so fresh ones spawn next battle
         saveGame();
         title.innerText = "💀 DEFEAT";
         title.className = "text-5xl font-bold mb-2 text-red-500 drop-shadow-lg";
