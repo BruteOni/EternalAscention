@@ -946,8 +946,15 @@ function processAutoTurn() {
     let { healMult } = getHealingMultipliers();
 
     if(!player.usedConsumableThisTurn) {
+        // Auto-use regen potions at 75% HP (if enabled in settings)
+        if (globalProgression.settings.autoUseRegenAt75 !== false) {
+            if (hpPct <= 0.75 && player.regenBuffs.length === 0) {
+                if(inv.pot_r3 > 0) return useConsumable('pot_r3');
+                if(inv.pot_r2 > 0) return useConsumable('pot_r2');
+                if(inv.pot_r1 > 0) return useConsumable('pot_r1');
+            }
+        }
         if(hpPct < 0.4) { if(inv.pot_i3 > 0) return useConsumable('pot_i3'); if(inv.pot_i2 > 0) return useConsumable('pot_i2'); if(inv.pot_i1 > 0) return useConsumable('pot_i1'); }
-        if(hpPct < 0.4 && player.regenBuffs.length === 0) { if(inv.pot_r3 > 0) return useConsumable('pot_r3'); if(inv.pot_r2 > 0) return useConsumable('pot_r2'); if(inv.pot_r1 > 0) return useConsumable('pot_r1'); }
         if(!player.activeBuffs.some(b => b.type === 'dmg')) { if(inv.food_d3 > 0) return useConsumable('food_d3'); if(inv.food_d2 > 0) return useConsumable('food_d2'); if(inv.food_d1 > 0) return useConsumable('food_d1'); }
         if(!player.activeBuffs.some(b => b.type === 'def')) { if(inv.food_df3 > 0) return useConsumable('food_df3'); if(inv.food_df2 > 0) return useConsumable('food_df2'); if(inv.food_df1 > 0) return useConsumable('food_df1'); }
     }
