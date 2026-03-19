@@ -136,7 +136,6 @@ function generateEnemies() {
                 });
                 activeTargetIndex = 0;
                 if (enemies.some(e => e.isBoss)) playBossMusic();
-                else playBattleMusic();
                 return;
             } else {
                 delete savedEnemies[persistKey];
@@ -311,8 +310,6 @@ function generateEnemies() {
 
     if(isBossFight) {
         playBossMusic();
-    } else {
-        playBattleMusic();
     }
 }
 

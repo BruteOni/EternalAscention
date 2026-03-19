@@ -320,8 +320,6 @@ function playBossMusic() {
     else playBossSong2();
 }
 
-function playBattleMusic() { /* no music for regular battles */ }
-
 function stopMusic() {
     if (musicLoopTimeoutId !== null) { clearTimeout(musicLoopTimeoutId); musicLoopTimeoutId = null; }
     if (!audioCtx) { activeOscillators = []; return; }
@@ -499,6 +497,7 @@ setInterval(updateHp, 1000);
 setInterval(saveGame, 30000);
 
 function consumeEnergy(amount) {
+    if (!Number.isFinite(amount) || amount <= 0) return false;
     if(globalProgression.energy >= amount) { globalProgression.energy -= amount; let maxEnergy = getMaxEnergy(); if(globalProgression.energy === maxEnergy - amount) globalProgression.lastEnergyTime = Date.now(); saveGame(); updateEnergy(); return true; }
     return false;
 }
@@ -551,6 +550,7 @@ function saveGame() {
         localStorage.setItem('EternalAscensionSaveDataV1', saveString);
     } catch(e) {
         console.error('saveGame: localStorage write failed:', e);
+        alert('Warning: Your game could not be saved due to a storage error. Progress since your last save may be lost.');
     }
     // Also save to class-specific key so each class has its own independent save
     if (player && player.classId) {
@@ -837,11 +837,6 @@ function hasBetterGear(slot) {
     let baseSlot = slot.startsWith('ring') ? 'ring' : slot;
     let betterInInv = globalProgression.equipInventory.some(i => i.type === baseSlot && getGearScore(i) > eqGS);
     return betterInInv;
-}
-
-function getEquipStats() {
-    // Gear no longer provides flat hp/dmg/def — new system uses percentage stats
-    return { hp: 0, dmg: 0, def: 0 };
 }
 
 function calculateMaxHp() {
@@ -1638,9 +1633,18 @@ function gambleGold(amount) {
         playSound('lose');
         return;
     }
-    // Deduct gold IMMEDIATELY to prevent double-spend
+    // Resolve the bet immediately so closing the browser cannot cause gold loss without a win chance
+    const won = Math.random() < 0.5;
     globalProgression.gold -= amount;
-    { let ps = ensureProgressStats(); ps.goldSpent += amount; }
+    let ps = ensureProgressStats();
+    ps.goldSpent += amount;
+    if(won) {
+        globalProgression.gold += (amount * 2);
+        ps.gamblingWins++;
+    } else {
+        ps.gamblingLosses++;
+    }
+    saveGame();
     // Disable gamble buttons during animation
     document.querySelectorAll('[onclick^="gambleGold"]').forEach(b => b.disabled = true);
     // Show gamble animation overlay
@@ -1653,17 +1657,13 @@ function gambleGold(amount) {
         let ol = document.getElementById('gamble-overlay');
         if(ol) ol.remove();
         document.querySelectorAll('[onclick^="gambleGold"]').forEach(b => b.disabled = false);
-        if(Math.random() < 0.5) {
-            globalProgression.gold += (amount * 2);
+        if(won) {
             log.innerHTML = `<span class="text-yellow-400 font-bold">You won the gamble! +${amount}G</span>`;
             playSound('win');
-            let ps = ensureProgressStats(); ps.gamblingWins++;
         } else {
             log.innerHTML = `<span class="text-gray-500">You lost the gamble... -${amount}G</span>`;
             playSound('lose');
-            let ps = ensureProgressStats(); ps.gamblingLosses++;
         }
-        saveGame();
     }, 1000);
 }
 
