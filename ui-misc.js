@@ -1,5 +1,6 @@
 // --- MAGICAL ENHANCER ---
 function showMagicalEnhancer() {
+    if (!player || !globalProgression || !globalProgression.inventory) return;
     let p = globalProgression;
     document.getElementById('me-gold-display').innerText = p.gold;
     document.getElementById('me-stones-display').innerText = p.inventory.magic_stone || 0;
@@ -53,7 +54,7 @@ function showMagicalEnhancer() {
         // Get active tier
         let activeTier = 0;
         if(alreadyEnhanced) {
-            [4, 8, 12, 14].forEach(t => { if(equippedCount >= t) activeTier = t; });
+            activeTier = getActiveSetTier(equippedCount);
         }
 
         let header = `<div class="flex items-center gap-2 mb-2">
@@ -67,7 +68,7 @@ function showMagicalEnhancer() {
         if(alreadyEnhanced && setDef) {
             // Show existing set bonus
             let bonusHtml = Object.entries(setDef.bonuses).map(([tier, desc]) => {
-                let tierNum = parseInt(tier);
+                let tierNum = parseInt(tier, 10);
                 let isActive = activeTier >= tierNum;
                 let colorClass = isActive ? setDef.color + ' set-bonus-active' : 'text-gray-500';
                 return `<div class="text-xs ${colorClass} ${isActive ? 'font-bold' : ''}">${tierNum}-piece: ${desc}</div>`;
@@ -120,7 +121,7 @@ function enhanceWithSet(itemRef, setKey) {
         item = p.equipInventory.find(i => i && i.id === itemId);
     } else if(typeof itemRef === 'string' && itemRef.startsWith('inv_')) {
         // Legacy fallback for old-style index refs
-        let idx = parseInt(itemRef.replace('inv_', ''));
+        let idx = parseInt(itemRef.replace('inv_', ''), 10);
         item = p.equipInventory[idx];
     }
 
@@ -139,6 +140,7 @@ function enhanceWithSet(itemRef, setKey) {
 
 // --- PROGRESS MENU ---
 function showProgressMenu() {
+    if (!player || !player.data || !globalProgression) return;
     let ps = ensureProgressStats();
     // Update level reached
     if (player.lvl > (ps.levelReached || 0)) ps.levelReached = player.lvl;
@@ -190,6 +192,35 @@ function closeProgressMenu() {
 }
 
 // --- EXPORT / IMPORT SAVE ---
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0; // Convert to 32-bit integer
+    }
+    return btoa(hash.toString());
+}
+
+function copyToClipboard(text, btn) {
+    const onSuccess = () => {
+        btn.innerText = "Copied!";
+        playSound('click');
+        setTimeout(() => { btn.innerText = "Copy to Clipboard"; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(() => {
+            const ta = document.getElementById('sl-modal-text');
+            if (ta) { ta.select(); try { document.execCommand('copy'); } catch(e) {} }
+            onSuccess();
+        });
+    } else {
+        const ta = document.getElementById('sl-modal-text');
+        if (ta) { ta.select(); try { document.execCommand('copy'); } catch(e) {} }
+        onSuccess();
+    }
+}
+
 function showExport() {
     saveGame();
     let saveData = localStorage.getItem('EternalAscensionSaveDataV1') || localStorage.getItem('fogFighterSaveDataV22') || localStorage.getItem('fogFighterSaveDataV21') || localStorage.getItem('fogFighterSaveDataV20');
@@ -200,7 +231,8 @@ function showExport() {
         document.getElementById('modal-save-load').style.display = 'flex';
         return;
     }
-    let encoded = btoa(unescape(encodeURIComponent(saveData)));
+    let dataWithChecksum = saveData + '|' + simpleHash(saveData);
+    let encoded = btoa(unescape(encodeURIComponent(dataWithChecksum)));
     
     document.getElementById('sl-modal-title').innerText = "Export Save Data";
     document.getElementById('sl-modal-desc').innerText = "Copy this text to save your progress elsewhere.";
@@ -211,27 +243,7 @@ function showExport() {
     btn.className = "w-full bg-blue-700 hover:bg-blue-600 text-white font-bold py-3 rounded transition active:scale-95 border border-blue-500";
     btn.onclick = () => {
         let text = document.getElementById('sl-modal-text').value;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => {
-                btn.innerText = "Copied!";
-                playSound('click');
-                setTimeout(() => btn.innerText = "Copy to Clipboard", 2000);
-            }).catch(() => {
-                let ta = document.getElementById('sl-modal-text');
-                ta.select();
-                try { document.execCommand('copy'); } catch(e) {}
-                btn.innerText = "Copied!";
-                playSound('click');
-                setTimeout(() => btn.innerText = "Copy to Clipboard", 2000);
-            });
-        } else {
-            let ta = document.getElementById('sl-modal-text');
-            ta.select();
-            try { document.execCommand('copy'); } catch(e) {}
-            btn.innerText = "Copied!";
-            playSound('click');
-            setTimeout(() => btn.innerText = "Copy to Clipboard", 2000);
-        }
+        copyToClipboard(text, btn);
     };
     document.getElementById('modal-save-load').style.display = 'flex';
 }
@@ -254,13 +266,13 @@ function showImport() {
                 const parts = decoded.split('|');
                 jsonData = parts[0];
                 const checksum = parts[1];
-                if (checksum !== btoa(jsonData.length.toString())) {
+                if (checksum !== simpleHash(jsonData) && checksum !== btoa(jsonData.length.toString())) {
                     throw new Error("Checksum mismatch");
                 }
             }
             let parsed = JSON.parse(jsonData); 
             if(parsed.global && parsed.pState) {
-                localStorage.setItem('EternalAscensionSaveDataV1', decoded);
+                localStorage.setItem('EternalAscensionSaveDataV1', jsonData);
                 closeSaveLoadModal();
                 playSound('win');
                 loadGameAndContinue(); 

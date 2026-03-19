@@ -36,6 +36,7 @@ const ENHANCEMENT_DEFS = {
 // --- SKILL MODAL UI (keep for equip system) ---
 let activeSkillSlot = null;
 function openSkillModal(slotIndex) {
+    if (!player || !player.data) return;
     activeSkillSlot = slotIndex;
     const list = document.getElementById('skill-modal-list'); list.innerHTML = '';
 
@@ -62,6 +63,7 @@ function closeSkillModal() { document.getElementById('modal-skills').style.displ
 
 // --- SKILL UNLOCK POPUP ---
 function showSkillUnlockPopup(skillIdx) {
+    if (!player || !player.data || !player.data.skills) return;
     let skill = player.data.skills[skillIdx];
     if(!skill) return;
     let existing = document.getElementById('skill-unlock-popup');
