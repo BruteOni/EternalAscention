@@ -3,6 +3,14 @@ let audioCtx = null;
 let activeOscillators = [];
 let musicLoopTimeoutId = null;
 
+// Legacy save key priority list (newest → oldest) used for backwards-compatible save loading
+const LEGACY_SAVE_KEYS = [
+    'EternalAscensionSaveDataV1',
+    'fogFighterSaveDataV22',
+    'fogFighterSaveDataV21',
+    'fogFighterSaveDataV20'
+];
+
 function setAvatarDisplay(elementId, avatar) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -26,8 +34,69 @@ function setAvatarDisplay(elementId, avatar) {
     }
 }
 
-function initAudio() { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } if (audioCtx.state === 'suspended') { audioCtx.resume(); } }
-window.addEventListener('click', (e) => { if (!audioCtx || audioCtx.state !== 'running') initAudio(); if(e.target.closest('button') || e.target.closest('.equip-slot') || e.target.closest('.enemy-card')) playSound('click'); });
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+window.addEventListener('click', (e) => {
+    if (!audioCtx || audioCtx.state !== 'running') {
+        initAudio();
+    }
+    if (e.target.closest('button') || e.target.closest('.equip-slot') || e.target.closest('.enemy-card')) {
+        playSound('click');
+    }
+});
+
+/**
+ * Creates, configures, and plays a single Web Audio API oscillator node.
+ * @param {string} oscType - OscillatorNode type ('sine','square','sawtooth','triangle')
+ * @param {number} startFreq - Starting frequency in Hz
+ * @param {number|null} endFreq - Ending frequency in Hz (null = no ramp)
+ * @param {number} startGain - Initial gain value
+ * @param {number} duration - Duration of the gain envelope and stop time in seconds
+ * @param {number} now - audioCtx.currentTime reference
+ * @param {object} [opts] - Optional overrides
+ * @param {number}  [opts.endGain=0.001]     - Final gain value (must be > 0 for exponential ramp)
+ * @param {string}  [opts.freqRamp='exponential'] - Frequency ramp type: 'exponential' or 'linear'
+ * @param {string}  [opts.gainRamp='exponential'] - Gain ramp type: 'exponential' or 'linear'
+ * @param {number}  [opts.offset=0]          - Start time offset from `now` in seconds
+ * @param {number}  [opts.freqDur]           - Frequency ramp duration (defaults to `duration`)
+ */
+function playOscillator(oscType, startFreq, endFreq, startGain, duration, now, opts = {}) {
+    const {
+        endGain = 0.001,
+        freqRamp = 'exponential',
+        gainRamp = 'exponential',
+        offset = 0,
+        freqDur = duration
+    } = opts;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const t = now + offset;
+    osc.type = oscType;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.setValueAtTime(startFreq, t);
+    if (endFreq !== null) {
+        if (freqRamp === 'linear') {
+            osc.frequency.linearRampToValueAtTime(endFreq, t + freqDur);
+        } else {
+            osc.frequency.exponentialRampToValueAtTime(endFreq, t + freqDur);
+        }
+    }
+    gain.gain.setValueAtTime(startGain, t);
+    if (gainRamp === 'linear') {
+        gain.gain.linearRampToValueAtTime(endGain, t + duration);
+    } else {
+        gain.gain.exponentialRampToValueAtTime(endGain, t + duration);
+    }
+    osc.start(t);
+    osc.stop(t + duration);
+}
 
 function playSound(type) {
     if(typeof globalProgression === 'undefined') window.globalProgression = {};
@@ -37,11 +106,7 @@ function playSound(type) {
     const now = audioCtx.currentTime;
 
     if (type === 'hit') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(55, now + 0.12);
-        gain.gain.setValueAtTime(0.08, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-        osc.start(now); osc.stop(now + 0.12);
+        playOscillator('sawtooth', 220, 55, 0.08, 0.12, now);
     } else if (type === 'crit') {
         // Metallic crash: noise burst via rapid random frequency modulation
         const noiseOsc = audioCtx.createOscillator();
@@ -57,7 +122,6 @@ function playSound(type) {
         noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
         noiseOsc.start(now);
         noiseOsc.stop(now + 0.15);
-
         // Second noise layer (triangle) for thickness/density
         const triOsc = audioCtx.createOscillator();
         const triGain = audioCtx.createGain();
@@ -72,152 +136,128 @@ function playSound(type) {
         triGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
         triOsc.start(now);
         triOsc.stop(now + 0.12);
-
         // High-pitched descending sweep
-        const sweepOsc = audioCtx.createOscillator();
-        const sweepGain = audioCtx.createGain();
-        sweepOsc.type = 'sine';
-        sweepOsc.frequency.setValueAtTime(2500, now);
-        sweepOsc.frequency.exponentialRampToValueAtTime(150, now + 0.2);
-        sweepOsc.connect(sweepGain);
-        sweepGain.connect(audioCtx.destination);
-        sweepGain.gain.setValueAtTime(0.05, now);
-        sweepGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-        sweepOsc.start(now);
-        sweepOsc.stop(now + 0.18);
-
+        playOscillator('sine', 2500, 150, 0.05, 0.18, now);
         // Low thump for weight
-        const thumpOsc = audioCtx.createOscillator();
-        const thumpGain = audioCtx.createGain();
-        thumpOsc.type = 'sine';
-        thumpOsc.frequency.setValueAtTime(80, now);
-        thumpOsc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
-        thumpOsc.connect(thumpGain);
-        thumpGain.connect(audioCtx.destination);
-        thumpGain.gain.setValueAtTime(0.07, now);
-        thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
-        thumpOsc.start(now);
-        thumpOsc.stop(now + 0.10);
+        playOscillator('sine', 80, 40, 0.07, 0.10, now);
     } else if (type === 'heal') {
         [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
-            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + i * 0.07);
-            gain.gain.setValueAtTime(0.0, now + i * 0.07); gain.gain.linearRampToValueAtTime(0.05, now + i * 0.07 + 0.05); gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.25);
-            osc.start(now + i * 0.07); osc.stop(now + i * 0.07 + 0.25);
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const t = now + i * 0.07;
+            osc.type = 'sine';
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.0, t);
+            gain.gain.linearRampToValueAtTime(0.05, t + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+            osc.start(t);
+            osc.stop(t + 0.25);
         });
     } else if (type === 'shield' || type === 'buff') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        const lfo = audioCtx.createOscillator(); const lfoGain = audioCtx.createGain();
-        lfo.type = 'sine'; lfo.frequency.value = 8; lfoGain.gain.value = 6;
-        lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'triangle'; osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(800, now + 0.2);
-        gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0.001, now + 0.3);
-        osc.start(now); lfo.start(now); osc.stop(now + 0.3); lfo.stop(now + 0.3);
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        lfo.type = 'sine';
+        lfo.frequency.value = 8;
+        lfoGain.gain.value = 6;
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.2);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now);
+        lfo.start(now);
+        osc.stop(now + 0.3);
+        lfo.stop(now + 0.3);
     } else if (type === 'win') {
         [[523.25, 0], [659.25, 0.1], [783.99, 0.2], [1046.5, 0.3], [1318.5, 0.4]].forEach(([freq, delay]) => {
-            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, now + delay);
-            gain.gain.setValueAtTime(0.05, now + delay); gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.25);
-            osc.start(now + delay); osc.stop(now + delay + 0.25);
+            playOscillator('triangle', freq, null, 0.05, 0.25, now, { offset: delay });
         });
     } else if (type === 'lose') {
         [[440, 0], [370, 0.15], [311, 0.3], [261, 0.45], [220, 0.6]].forEach(([freq, delay]) => {
-            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(freq, now + delay); osc.frequency.linearRampToValueAtTime(freq * 0.7, now + delay + 0.2);
-            gain.gain.setValueAtTime(0.04, now + delay); gain.gain.linearRampToValueAtTime(0.001, now + delay + 0.3);
-            osc.start(now + delay); osc.stop(now + delay + 0.3);
+            playOscillator('sawtooth', freq, freq * 0.7, 0.04, 0.3, now, {
+                offset: delay, freqRamp: 'linear', gainRamp: 'linear', freqDur: 0.2
+            });
         });
     } else if (type === 'click') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(600, now + 0.04);
-        gain.gain.setValueAtTime(0.015, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now); osc.stop(now + 0.04);
+        playOscillator('sine', 1200, 600, 0.015, 0.04, now);
     } else if (type === 'pb_clash') {
         // Meaty layered impact: low thump + metallic crunch + high burst
-        const thump = audioCtx.createOscillator(); const thumpG = audioCtx.createGain();
-        thump.type = 'sine'; thump.frequency.setValueAtTime(120, now); thump.frequency.exponentialRampToValueAtTime(40, now + 0.15);
-        thump.connect(thumpG); thumpG.connect(audioCtx.destination);
-        thumpG.gain.setValueAtTime(0.12, now); thumpG.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-        thump.start(now); thump.stop(now + 0.18);
-        const crunch = audioCtx.createOscillator(); const crunchG = audioCtx.createGain();
+        playOscillator('sine', 120, 40, 0.12, 0.18, now, { freqDur: 0.15 });
+        const crunch = audioCtx.createOscillator();
+        const crunchG = audioCtx.createGain();
         crunch.type = 'square';
-        for (let t = 0; t < 0.12; t += 0.004) crunch.frequency.setValueAtTime(800 + Math.random() * 2000, now + t);
-        crunch.connect(crunchG); crunchG.connect(audioCtx.destination);
-        crunchG.gain.setValueAtTime(0.07, now); crunchG.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-        crunch.start(now); crunch.stop(now + 0.14);
-        const burst = audioCtx.createOscillator(); const burstG = audioCtx.createGain();
-        burst.type = 'sawtooth'; burst.frequency.setValueAtTime(400, now); burst.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-        burst.connect(burstG); burstG.connect(audioCtx.destination);
-        burstG.gain.setValueAtTime(0.05, now); burstG.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        burst.start(now); burst.stop(now + 0.1);
+        for (let t = 0; t < 0.12; t += 0.004) {
+            crunch.frequency.setValueAtTime(800 + Math.random() * 2000, now + t);
+        }
+        crunch.connect(crunchG);
+        crunchG.connect(audioCtx.destination);
+        crunchG.gain.setValueAtTime(0.07, now);
+        crunchG.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        crunch.start(now);
+        crunch.stop(now + 0.14);
+        playOscillator('sawtooth', 400, 100, 0.05, 0.1, now);
     } else if (type === 'pb_shield') {
         // Resonant metallic "ting!" - high ping with long decay
-        const ping = audioCtx.createOscillator(); const pingG = audioCtx.createGain();
-        ping.type = 'triangle'; ping.frequency.setValueAtTime(2200, now); ping.frequency.exponentialRampToValueAtTime(1800, now + 0.3);
-        ping.connect(pingG); pingG.connect(audioCtx.destination);
-        pingG.gain.setValueAtTime(0.07, now); pingG.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-        ping.start(now); ping.stop(now + 0.35);
-        const ring = audioCtx.createOscillator(); const ringG = audioCtx.createGain();
-        ring.type = 'sine'; ring.frequency.setValueAtTime(3400, now); ring.frequency.exponentialRampToValueAtTime(2800, now + 0.25);
-        ring.connect(ringG); ringG.connect(audioCtx.destination);
-        ringG.gain.setValueAtTime(0.04, now + 0.01); ringG.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-        ring.start(now + 0.01); ring.stop(now + 0.28);
+        playOscillator('triangle', 2200, 1800, 0.07, 0.35, now, { freqDur: 0.3 });
+        playOscillator('sine', 3400, 2800, 0.04, 0.27, now, { offset: 0.01, freqDur: 0.24 });
     } else if (type === 'pb_counter') {
         // Quick whip/whoosh: fast descending sweep + snap
-        const whoosh = audioCtx.createOscillator(); const whooshG = audioCtx.createGain();
-        whoosh.type = 'sawtooth'; whoosh.frequency.setValueAtTime(900, now); whoosh.frequency.exponentialRampToValueAtTime(150, now + 0.08);
-        whoosh.connect(whooshG); whooshG.connect(audioCtx.destination);
-        whooshG.gain.setValueAtTime(0.06, now); whooshG.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        whoosh.start(now); whoosh.stop(now + 0.1);
-        const snap = audioCtx.createOscillator(); const snapG = audioCtx.createGain();
-        snap.type = 'square'; snap.frequency.setValueAtTime(2500, now + 0.07); snap.frequency.exponentialRampToValueAtTime(400, now + 0.12);
-        snap.connect(snapG); snapG.connect(audioCtx.destination);
-        snapG.gain.setValueAtTime(0.05, now + 0.07); snapG.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
-        snap.start(now + 0.07); snap.stop(now + 0.13);
+        playOscillator('sawtooth', 900, 150, 0.06, 0.1, now);
+        playOscillator('square', 2500, 400, 0.05, 0.06, now, { offset: 0.07, freqDur: 0.05 });
     } else if (type === 'pb_suspense') {
         // Slow ascending tone that builds anticipation
-        const rise = audioCtx.createOscillator(); const riseG = audioCtx.createGain();
-        rise.type = 'sine'; rise.frequency.setValueAtTime(200, now); rise.frequency.linearRampToValueAtTime(600, now + 0.45);
-        rise.connect(riseG); riseG.connect(audioCtx.destination);
-        riseG.gain.setValueAtTime(0.0, now); riseG.gain.linearRampToValueAtTime(0.06, now + 0.1);
-        riseG.gain.linearRampToValueAtTime(0.08, now + 0.4); riseG.gain.linearRampToValueAtTime(0.0, now + 0.5);
-        rise.start(now); rise.stop(now + 0.5);
-        const shimmer = audioCtx.createOscillator(); const shimmerG = audioCtx.createGain();
-        shimmer.type = 'triangle'; shimmer.frequency.setValueAtTime(400, now); shimmer.frequency.linearRampToValueAtTime(1200, now + 0.45);
-        shimmer.connect(shimmerG); shimmerG.connect(audioCtx.destination);
-        shimmerG.gain.setValueAtTime(0.0, now); shimmerG.gain.linearRampToValueAtTime(0.03, now + 0.15);
+        const rise = audioCtx.createOscillator();
+        const riseG = audioCtx.createGain();
+        rise.type = 'sine';
+        rise.frequency.setValueAtTime(200, now);
+        rise.frequency.linearRampToValueAtTime(600, now + 0.45);
+        rise.connect(riseG);
+        riseG.connect(audioCtx.destination);
+        riseG.gain.setValueAtTime(0.0, now);
+        riseG.gain.linearRampToValueAtTime(0.06, now + 0.1);
+        riseG.gain.linearRampToValueAtTime(0.08, now + 0.4);
+        riseG.gain.linearRampToValueAtTime(0.0, now + 0.5);
+        rise.start(now);
+        rise.stop(now + 0.5);
+        const shimmer = audioCtx.createOscillator();
+        const shimmerG = audioCtx.createGain();
+        shimmer.type = 'triangle';
+        shimmer.frequency.setValueAtTime(400, now);
+        shimmer.frequency.linearRampToValueAtTime(1200, now + 0.45);
+        shimmer.connect(shimmerG);
+        shimmerG.connect(audioCtx.destination);
+        shimmerG.gain.setValueAtTime(0.0, now);
+        shimmerG.gain.linearRampToValueAtTime(0.03, now + 0.15);
         shimmerG.gain.linearRampToValueAtTime(0.0, now + 0.5);
-        shimmer.start(now); shimmer.stop(now + 0.5);
+        shimmer.start(now);
+        shimmer.stop(now + 0.5);
     } else if (type === 'pb_big_hit') {
         // Extra punchy multi-layer: deep sub + metallic crash + high shriek
-        const sub = audioCtx.createOscillator(); const subG = audioCtx.createGain();
-        sub.type = 'sine'; sub.frequency.setValueAtTime(60, now); sub.frequency.exponentialRampToValueAtTime(25, now + 0.2);
-        sub.connect(subG); subG.connect(audioCtx.destination);
-        subG.gain.setValueAtTime(0.15, now); subG.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-        sub.start(now); sub.stop(now + 0.22);
-        const mid = audioCtx.createOscillator(); const midG = audioCtx.createGain();
-        mid.type = 'sawtooth'; mid.frequency.setValueAtTime(300, now); mid.frequency.exponentialRampToValueAtTime(80, now + 0.18);
-        mid.connect(midG); midG.connect(audioCtx.destination);
-        midG.gain.setValueAtTime(0.09, now); midG.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        mid.start(now); mid.stop(now + 0.2);
-        const shriek = audioCtx.createOscillator(); const shriekG = audioCtx.createGain();
+        playOscillator('sine', 60, 25, 0.15, 0.22, now, { freqDur: 0.2 });
+        playOscillator('sawtooth', 300, 80, 0.09, 0.2, now, { freqDur: 0.18 });
+        const shriek = audioCtx.createOscillator();
+        const shriekG = audioCtx.createGain();
         shriek.type = 'square';
-        for (let t = 0; t < 0.16; t += 0.003) shriek.frequency.setValueAtTime(1500 + Math.random() * 3000, now + t);
-        shriek.connect(shriekG); shriekG.connect(audioCtx.destination);
-        shriekG.gain.setValueAtTime(0.06, now); shriekG.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-        shriek.start(now); shriek.stop(now + 0.18);
+        for (let t = 0; t < 0.16; t += 0.003) {
+            shriek.frequency.setValueAtTime(1500 + Math.random() * 3000, now + t);
+        }
+        shriek.connect(shriekG);
+        shriekG.connect(audioCtx.destination);
+        shriekG.gain.setValueAtTime(0.06, now);
+        shriekG.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        shriek.start(now);
+        shriek.stop(now + 0.18);
     } else if (type === 'pb_whiff') {
         // Soft "pff" miss: gentle noise puff
-        const pff = audioCtx.createOscillator(); const pffG = audioCtx.createGain();
-        pff.type = 'triangle'; pff.frequency.setValueAtTime(500, now); pff.frequency.exponentialRampToValueAtTime(150, now + 0.12);
-        pff.connect(pffG); pffG.connect(audioCtx.destination);
-        pffG.gain.setValueAtTime(0.03, now); pffG.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-        pff.start(now); pff.stop(now + 0.14);
+        playOscillator('triangle', 500, 150, 0.03, 0.14, now, { freqDur: 0.12 });
     }
 }
 
@@ -352,61 +392,96 @@ let petBattlePlayerHp = 10; let petBattleEnemyHp = 10; let petBattleLastAction =
 let petBattleAutoMode = false; let petBattleAutoTimer = null;
 
 // --- ENERGY SYSTEM ---
+
+// Lazy DOM element cache - avoids repeated document.getElementById calls inside setInterval callbacks
+const _elCache = {};
+function getEl(id) {
+    if (!_elCache[id]) {
+        _elCache[id] = document.getElementById(id);
+    }
+    return _elCache[id];
+}
+
 function getMaxEnergy() {
     let baseCap = globalProgression.energyCapUnlocked ? 100 : 50;
     return Math.min(baseCap, 10 + Math.max(0, player.lvl - 1));
 }
 
 function updateEnergy() {
-    let maxEnergy = getMaxEnergy();
-    let now = Date.now(); let msPassed = now - globalProgression.lastEnergyTime; let minutesPassed = Math.floor(msPassed / 60000);
+    const maxEnergy = getMaxEnergy();
+    const now = Date.now();
+    const msPassed = now - globalProgression.lastEnergyTime;
+    const minutesPassed = Math.floor(msPassed / 60000);
     if (globalProgression.energy < maxEnergy) {
-        if (minutesPassed > 0) { globalProgression.energy = Math.min(maxEnergy, globalProgression.energy + minutesPassed); globalProgression.lastEnergyTime = now - (msPassed % 60000); }
-    } else { globalProgression.lastEnergyTime = now; }
+        if (minutesPassed > 0) {
+            globalProgression.energy = Math.min(maxEnergy, globalProgression.energy + minutesPassed);
+            globalProgression.lastEnergyTime = now - (msPassed % 60000);
+        }
+    } else {
+        globalProgression.lastEnergyTime = now;
+    }
 
-    const eEl = document.getElementById('hub-energy'); if(eEl) eEl.innerText = globalProgression.energy;
-    const eMxEl = document.getElementById('hub-energy-max'); if(eMxEl) eMxEl.innerText = maxEnergy;
-    const eBar = document.getElementById('hub-energy-bar'); if(eBar) eBar.style.width = (maxEnergy > 0 ? Math.round((globalProgression.energy / maxEnergy) * 100) : 0) + '%';
-    const seEl = document.getElementById('story-energy'); if(seEl) seEl.innerText = globalProgression.energy;
+    const eEl = getEl('hub-energy');
+    if (eEl) eEl.innerText = globalProgression.energy;
+    const eMxEl = getEl('hub-energy-max');
+    if (eMxEl) eMxEl.innerText = maxEnergy;
+    const eBar = getEl('hub-energy-bar');
+    if (eBar) eBar.style.width = (maxEnergy > 0 ? Math.round((globalProgression.energy / maxEnergy) * 100) : 0) + '%';
+    const seEl = getEl('story-energy');
+    if (seEl) seEl.innerText = globalProgression.energy;
 
     // Show/hide energy cap upgrade indicator in well button
-    const wellNoti = document.getElementById('hub-well-energy-noti');
-    if(wellNoti) wellNoti.style.display = (!globalProgression.energyCapUnlocked && getMaxEnergy() >= 50 && (globalProgression.gold >= 300)) ? 'inline' : 'none';
+    const wellNoti = getEl('hub-well-energy-noti');
+    if (wellNoti) {
+        wellNoti.style.display = (!globalProgression.energyCapUnlocked && getMaxEnergy() >= 50 && globalProgression.gold >= 300) ? 'inline' : 'none';
+    }
 
     ['herbs', 'mine', 'fish', 'enchants'].forEach(type => {
-        let el = document.getElementById(`timer-${type}`);
-        if(el) {
-            let cd = globalProgression.cooldowns[type] || 0; let remaining = cd - now;
-            if(remaining > 0) { let min = Math.floor(remaining / 60000); let sec = Math.floor((remaining % 60000) / 1000); el.innerText = `CD: ${min}m ${sec}s`; el.parentElement.disabled = true; } 
-            else { el.innerText = 'Ready (1 ⚡)'; el.parentElement.disabled = globalProgression.energy < 1; }
+        const el = getEl(`timer-${type}`);
+        if (el) {
+            const cd = globalProgression.cooldowns[type] || 0;
+            const remaining = cd - now;
+            if (remaining > 0) {
+                const min = Math.floor(remaining / 60000);
+                const sec = Math.floor((remaining % 60000) / 1000);
+                el.innerText = `CD: ${min}m ${sec}s`;
+                el.parentElement.disabled = true;
+            } else {
+                el.innerText = 'Ready (1 ⚡)';
+                el.parentElement.disabled = globalProgression.energy < 1;
+            }
         }
     });
 }
 setInterval(updateEnergy, 1000);
 
 function updateHp() {
-    let now = Date.now();
-    let msPassed = now - (globalProgression.lastHpRegenTime || now);
-    let minutesPassed = Math.floor(msPassed / 60000);
+    const now = Date.now();
+    const msPassed = now - (globalProgression.lastHpRegenTime || now);
+    const minutesPassed = Math.floor(msPassed / 60000);
     if (player.currentHp < player.maxHp) {
         if (minutesPassed > 0) {
-            let regenAmt = Math.min(player.maxHp - player.currentHp, minutesPassed * 10);
+            const regenAmt = Math.min(player.maxHp - player.currentHp, minutesPassed * 10);
             player.currentHp = Math.min(player.maxHp, player.currentHp + regenAmt);
             globalProgression.lastHpRegenTime = now - (msPassed % 60000);
         }
     } else {
         globalProgression.lastHpRegenTime = now;
     }
-    const hpCur = document.getElementById('hub-hp-current'); if(hpCur) hpCur.innerText = Math.ceil(Math.max(0, player.currentHp));
-    const hpMax = document.getElementById('hub-hp-max'); if(hpMax) hpMax.innerText = player.maxHp;
-    const hpBar = document.getElementById('hub-hp-bar'); if(hpBar) hpBar.style.width = (player.maxHp > 0 ? Math.round((Math.max(0, player.currentHp) / player.maxHp) * 100) : 0) + '%';
-    const hpTimer = document.getElementById('hub-hp-timer');
-    if(hpTimer) {
-        if(player.currentHp >= player.maxHp) { hpTimer.innerText = 'Full'; }
-        else {
-            let timeSinceLast = now - (globalProgression.lastHpRegenTime || now);
-            let timeToNext = 60000 - (timeSinceLast % 60000);
-            let sec = Math.ceil(timeToNext / 1000);
+    const hpCur = getEl('hub-hp-current');
+    if (hpCur) hpCur.innerText = Math.ceil(Math.max(0, player.currentHp));
+    const hpMax = getEl('hub-hp-max');
+    if (hpMax) hpMax.innerText = player.maxHp;
+    const hpBar = getEl('hub-hp-bar');
+    if (hpBar) hpBar.style.width = (player.maxHp > 0 ? Math.round((Math.max(0, player.currentHp) / player.maxHp) * 100) : 0) + '%';
+    const hpTimer = getEl('hub-hp-timer');
+    if (hpTimer) {
+        if (player.currentHp >= player.maxHp) {
+            hpTimer.innerText = 'Full';
+        } else {
+            const timeSinceLast = now - (globalProgression.lastHpRegenTime || now);
+            const timeToNext = 60000 - (timeSinceLast % 60000);
+            const sec = Math.ceil(timeToNext / 1000);
             hpTimer.innerText = `+10 in ${sec}s`;
         }
     }
@@ -493,196 +568,185 @@ function applyDefaults(target, defaults) {
     }
 }
 
+
+/**
+ * Returns a fresh globalProgression object with all default values.
+ * Used as the defaults template for both new games and save migration.
+ */
+function makeInitialGlobalProgression() {
+    return {
+        gold: 100, kills: 0, dungeonTier: 1, tickets: 5,
+        energy: 10, lastEnergyTime: Date.now(),
+        questProg1: 0, questGoal1: 3, questRwd1: 50, questRarity1: 'common', questType1: 'hunting',
+        questProg2: 0, questGoal2: 3, questRwd2: 100, questRarity2: 'common', questType2: 'pillage',
+        questProg3: 0, questGoal3: 3, questRwd3: 150, questRarity3: 'common', questType3: 'workshop',
+        questProg4: 0, questGoal4: 3, questRwd4: 200, questRarity4: 'common', questType4: 'dungeon',
+        questsCompletedToday: 0, lastQuestDate: new Date().toDateString(),
+        wellLastHealDate: '', wellXpBattles: 0, wellDropBattles: 0,
+        wellLastXpDate: '', wellLastDropDate: '', wellLastEnergyDate: '',
+        wellLastEnergy50Date: '', wellLastEnergy100Date: '',
+        lastHpRegenTime: Date.now(),
+        enemyKillCounts: {}, claimedCodexMilestones: {},
+        totalExpEarned: 0,
+        cooldowns: { herbs: 0, mine: 0, fish: 0, enchants: 0 },
+        inventory: {
+            ench_common: 0, ench_rare: 0, ench_epic: 0, ench_legendary: 0,
+            herb_red: 0, herb_blue: 0,
+            fish_1: 0, fish_2: 0, fish_3: 0, fish_4: 0, fish_5: 0, fish_6: 0,
+            soul_pebbles: 0,
+            pot_i1: 0, pot_i2: 0, pot_i3: 0,
+            pot_r1: 0, pot_r2: 0, pot_r3: 0,
+            food_d1: 0, food_d2: 0, food_d3: 0,
+            food_df1: 0, food_df2: 0, food_df3: 0,
+            magic_stone: 0
+        },
+        usableItems: {},
+        equipInventory: [],
+        equipped: {
+            head: null, shoulders: null, chest: null, arms: null, waist: null,
+            legs: null, boots: null, necklace: null,
+            ring1: null, ring2: null, ring3: null, ring4: null,
+            weapon: null, cape: null
+        },
+        newItems: {}, shopGear: [], shopLastRefresh: 0,
+        attributes: {
+            hp: 0, tenacity: 0, agility: 0, willpower: 0, resistance: 0,
+            reflexes: 0, fury: 0, happiness: 0, rawPower: 0, force: 0,
+            revival: 0, vampire: 0, defense: 0
+        },
+        storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
+        settings: { sound: true, music: true, autoBattleTargetPriority: 'easy', autoBattleUsables: [] },
+        gender: 'male',
+        discoveredEnemies: {}, claimedCodexRewards: {}, killedBosses: {}, discoveredMythicBosses: [],
+        skillTreeEnhancements: [],
+        classBaseAttributes: null,
+        burglarDailyPurchases: 0, burglarLastPurchaseDate: '',
+        petsOwned: [], petBattlesWon: 0, petBattleWinStreak: 0, petBattleBestStreak: 0,
+        discoveredPets: {}, claimedPetRewards: {}, ultimatePetRewardClaimed: false,
+        petWinLoss: {},
+        petBattleEnergy: 10, petBattleLastEnergyTime: Date.now(),
+        petFavorites: [],
+        saveVersion: 2
+    };
+}
+
+/**
+ * Returns a default player state object used as the template for save migration.
+ * For new games, use createFreshPlayer(classId) which includes class-specific values.
+ */
+function makeInitialPlayerState() {
+    return {
+        classId: 'warrior', lvl: 0, xp: 0, maxHp: 0, currentHp: 0, shield: 0,
+        statPoints: 0, skillPoints: 0, treeProgress: 0, treeBonusHp: 0, treeBonusDmg: 0, treeBonusDef: 0, treeBonusRegen: 0,
+        treeProgressFire: 0, treeProgressIce: 0, treeProgressOffense: 0, treeProgressDefense: 0,
+        treeProgressHoly: 0, treeProgressGuardian: 0, treeProgressShadow: 0, treeProgressVenom: 0,
+        treeProgressDivine: 0, treeProgressPlague: 0, treeProgressPrecision: 0, treeProgressSurvival: 0,
+        unlockedSkills: [0, 1, 2], equippedSkills: [0, 1, 2, null, null],
+        skillCooldowns: {}, regenBuffs: [], activeBuffs: [],
+        stunned: 0, bleedStacks: 0, bleedTurns: 0, dodgeTurns: 0,
+        equippedUsables: [null, null, null, null, null, null, null],
+        wayOfHeavensCooldown: 0, rageUsed: false, rageActive: 0, divineShieldUsed: false, reflectUsed: false,
+        usedConsumableThisTurn: false, nodeEnhancements: {},
+        skillMenuProgress: 0, skillMenuBonusDmgPct: 0, skillMenuBonusDefPct: 0, skillMenuBonusHpPct: 0, skillMenuInfiniteAtk: 0,
+        progressStats: {
+            levelReached: 1, highestDmg: 0, mostDmgSurvived: 0,
+            longestWinStreak: 0, currentWinStreak: 0,
+            totalKills: 0, totalDeaths: 0, battlesWon: 0, battlesLost: 0,
+            mythicBossFound: 0, maxDungeonCleared: 0, bossesDefeated: 0,
+            goldSpent: 0, highestGold: 0, gamblingWins: 0, gamblingLosses: 0,
+            totalPlayTimeSeconds: 0, potionsConsumed: 0, sessionStartTime: 0
+        }
+    };
+}
+
 function loadGameAndContinue() {
     try {
-    if (typeof CLASSES === 'undefined') {
-        console.error('loadGameAndContinue: CLASSES is not defined. Ensure data.js is loaded.');
-        return;
-    }
-    const saved = localStorage.getItem('EternalAscensionSaveDataV1') || localStorage.getItem('fogFighterSaveDataV22') || localStorage.getItem('fogFighterSaveDataV21') || localStorage.getItem('fogFighterSaveDataV20');
-    const savedKey = localStorage.getItem('EternalAscensionSaveDataV1') ? 'EternalAscensionSaveDataV1' : localStorage.getItem('fogFighterSaveDataV22') ? 'fogFighterSaveDataV22' : localStorage.getItem('fogFighterSaveDataV21') ? 'fogFighterSaveDataV21' : localStorage.getItem('fogFighterSaveDataV20') ? 'fogFighterSaveDataV20' : null;
-    console.log('loadGameAndContinue: saved data found =', !!saved, 'key =', savedKey);
-    if(saved) {
-        const savedJson = saved.includes('|') ? saved.split('|')[0] : saved;
-        const data = JSON.parse(savedJson); globalProgression = data.global; player = data.pState;
-
-        // Build current defaults to fill in any missing fields from new updates
-        const defaultGP = {
-            gold: 100, kills: 0, dungeonTier: 1, tickets: 5,
-            energy: 10, lastEnergyTime: Date.now(),
-            questProg1: 0, questGoal1: 3, questRwd1: 50, questRarity1: 'common', questType1: 'hunting',
-            questProg2: 0, questGoal2: 3, questRwd2: 100, questRarity2: 'common', questType2: 'pillage',
-            questProg3: 0, questGoal3: 3, questRwd3: 150, questRarity3: 'common', questType3: 'workshop',
-            questProg4: 0, questGoal4: 3, questRwd4: 200, questRarity4: 'common', questType4: 'dungeon',
-            questsCompletedToday: 0, lastQuestDate: new Date().toDateString(),
-            wellLastHealDate: '', wellXpBattles: 0, wellDropBattles: 0, wellLastXpDate: '', wellLastDropDate: '', wellLastEnergyDate: '', wellLastEnergy50Date: '', wellLastEnergy100Date: '',
-            lastHpRegenTime: Date.now(), enemyKillCounts: {}, claimedCodexMilestones: {},
-            totalExpEarned: 0, cooldowns: { herbs: 0, mine: 0, fish: 0, enchants: 0 },
-        inventory: { ench_common: 0, ench_rare: 0, ench_epic: 0, ench_legendary: 0, herb_red: 0, herb_blue: 0, fish_1: 0, fish_2: 0, fish_3: 0, fish_4: 0, fish_5: 0, fish_6: 0, soul_pebbles: 0, pot_i1: 0, pot_i2: 0, pot_i3: 0, pot_r1: 0, pot_r2: 0, pot_r3: 0, food_d1: 0, food_d2: 0, food_d3: 0, food_df1: 0, food_df2: 0, food_df3: 0, magic_stone: 0 },
-            equipInventory: [], equipped: { head: null, shoulders: null, chest: null, arms: null, waist: null, legs: null, boots: null, necklace: null, ring1: null, ring2: null, ring3: null, ring4: null, weapon: null, cape: null },
-            newItems: {}, shopGear: [], shopLastRefresh: 0,
-            attributes: { hp: 0, tenacity: 0, agility: 0, willpower: 0, resistance: 0, reflexes: 0, fury: 0, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 },
-            storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
-            settings: { sound: true, music: true, autoBattleTargetPriority: 'easy', autoBattleUsables: [] },
-            gender: 'male',
-            discoveredEnemies: {}, claimedCodexRewards: {}, killedBosses: {}, discoveredMythicBosses: [],
-            skillTreeEnhancements: [],
-            classBaseAttributes: null,
-            petFavorites: [],
-            saveVersion: 2
-        };
-        const defaultPlayer = {
-            classId: 'warrior', lvl: 0, xp: 0, maxHp: 0, currentHp: 0, shield: 0,
-            statPoints: 0, skillPoints: 0, treeProgress: 0, treeBonusHp: 0, treeBonusDmg: 0, treeBonusDef: 0, treeBonusRegen: 0,
-            treeProgressFire: 0, treeProgressIce: 0, treeProgressOffense: 0, treeProgressDefense: 0,
-            treeProgressHoly: 0, treeProgressGuardian: 0, treeProgressShadow: 0, treeProgressVenom: 0,
-            treeProgressDivine: 0, treeProgressPlague: 0, treeProgressPrecision: 0, treeProgressSurvival: 0,
-            unlockedSkills: [0, 1, 2], equippedSkills: [0, 1, 2, null, null],
-            skillCooldowns: {}, regenBuffs: [], activeBuffs: [],
-            stunned: 0, bleedStacks: 0, bleedTurns: 0, dodgeTurns: 0,
-            equippedUsables: [null, null, null, null, null, null, null],
-            wayOfHeavensCooldown: 0, rageUsed: false, rageActive: 0, divineShieldUsed: false, reflectUsed: false,
-            usedConsumableThisTurn: false, nodeEnhancements: {},
-            skillMenuProgress: 0, skillMenuBonusDmgPct: 0, skillMenuBonusDefPct: 0, skillMenuBonusHpPct: 0, skillMenuInfiniteAtk: 0,
-                levelReached: 1, highestDmg: 0, mostDmgSurvived: 0,
-                longestWinStreak: 0, currentWinStreak: 0,
-                totalKills: 0, totalDeaths: 0, battlesWon: 0, battlesLost: 0,
-                mythicBossFound: 0, maxDungeonCleared: 0, bossesDefeated: 0,
-                goldSpent: 0, highestGold: 0, gamblingWins: 0, gamblingLosses: 0,
-                totalPlayTimeSeconds: 0, potionsConsumed: 0, sessionStartTime: Date.now()
-            }
-        };
-        applyDefaults(globalProgression, defaultGP);
-        applyDefaults(player, defaultPlayer);
-
-        if(globalProgression.questType4 === undefined) { globalProgression.questType4 = 'dungeon'; globalProgression.questGoal4 = 3; globalProgression.questProg4 = 0; globalProgression.questRwd4 = 200; globalProgression.questRarity4 = 'common'; }
-        if(globalProgression.questsCompletedToday === undefined) { globalProgression.questsCompletedToday = 0; globalProgression.lastQuestDate = new Date().toDateString(); }
-        if(globalProgression.wellLastHealDate === undefined) globalProgression.wellLastHealDate = '';
-        if(globalProgression.wellXpBattles === undefined) globalProgression.wellXpBattles = 0;
-        if(globalProgression.wellDropBattles === undefined) globalProgression.wellDropBattles = 0;
-        if(globalProgression.attributes === undefined) globalProgression.attributes = { hp: 0, tenacity: 0, agility: 0, willpower: 0, resistance: 0, reflexes: 0, fury: 0, happiness: 0, rawPower: 0, force: 0, revival: 0, vampire: 0, defense: 0 };
-        if(globalProgression.shopGear === undefined) { globalProgression.shopGear = []; globalProgression.shopLastRefresh = 0; }
-        if(globalProgression.settings === undefined) globalProgression.settings = { sound: true, music: true };
-        if(globalProgression.settings.autoBattleTargetPriority === undefined) globalProgression.settings.autoBattleTargetPriority = 'easy';
-        if(globalProgression.settings.autoBattleUsables === undefined) globalProgression.settings.autoBattleUsables = [];
-        if(globalProgression.discoveredEnemies === undefined) globalProgression.discoveredEnemies = {};
-        if(globalProgression.claimedCodexRewards === undefined) globalProgression.claimedCodexRewards = {};
-        if(globalProgression.killedBosses === undefined) globalProgression.killedBosses = {};
-        if(globalProgression.discoveredMythicBosses === undefined) globalProgression.discoveredMythicBosses = [];
-        if(globalProgression.inventory.soul_pebbles === undefined) globalProgression.inventory.soul_pebbles = 0;
-        if(globalProgression.lastHpRegenTime === undefined) globalProgression.lastHpRegenTime = Date.now();
-        if(globalProgression.wellLastXpDate === undefined) globalProgression.wellLastXpDate = '';
-        if(globalProgression.wellLastDropDate === undefined) globalProgression.wellLastDropDate = '';
-        if(globalProgression.wellLastEnergyDate === undefined) globalProgression.wellLastEnergyDate = '';
-        if(globalProgression.wellLastEnergy50Date === undefined) globalProgression.wellLastEnergy50Date = '';
-        if(globalProgression.wellLastEnergy100Date === undefined) globalProgression.wellLastEnergy100Date = '';
-        if(globalProgression.enemyKillCounts === undefined) globalProgression.enemyKillCounts = {};
-        if(globalProgression.claimedCodexMilestones === undefined) globalProgression.claimedCodexMilestones = {};
-        if(!player.equippedUsables) player.equippedUsables = [null, null, null, null, null, null, null];
-        if(globalProgression.skillTreeEnhancements === undefined) globalProgression.skillTreeEnhancements = [];
-        if(player.nodeEnhancements === undefined) player.nodeEnhancements = {};
-        if(player.wayOfHeavensCooldown === undefined) player.wayOfHeavensCooldown = 0;
-        if(globalProgression.equipped && globalProgression.equipped.cape === undefined) globalProgression.equipped.cape = null;
-        if(globalProgression.classBaseAttributes === undefined) globalProgression.classBaseAttributes = null;
-        if(player.treeProgressHoly === undefined) player.treeProgressHoly = 0;
-        if(player.treeProgressGuardian === undefined) player.treeProgressGuardian = 0;
-        if(player.treeProgressShadow === undefined) player.treeProgressShadow = 0;
-        if(player.treeProgressVenom === undefined) player.treeProgressVenom = 0;
-        if(player.treeProgressDivine === undefined) player.treeProgressDivine = 0;
-        if(player.treeProgressPlague === undefined) player.treeProgressPlague = 0;
-        if(player.treeProgressPrecision === undefined) player.treeProgressPrecision = 0;
-        if(player.treeProgressSurvival === undefined) player.treeProgressSurvival = 0;
-        if(globalProgression.attributes.happiness === undefined) globalProgression.attributes.happiness = 0;
-        // Migrate old devotion attribute → remove it, add new attributes with 0 default
-        if(globalProgression.attributes.devotion !== undefined) delete globalProgression.attributes.devotion;
-        // Add new attributes for saves that don't have them yet (version migration)
-        if(globalProgression.attributes.rawPower === undefined) globalProgression.attributes.rawPower = 0;
-        if(globalProgression.attributes.force === undefined) globalProgression.attributes.force = 0;
-        if(globalProgression.attributes.revival === undefined) globalProgression.attributes.revival = 0;
-        if(globalProgression.attributes.vampire === undefined) globalProgression.attributes.vampire = 0;
-        if(globalProgression.attributes.defense === undefined) globalProgression.attributes.defense = 0;
-        // Remove legacy 'devastation' attribute if present in old saves
-        if(globalProgression.attributes.devastation !== undefined) delete globalProgression.attributes.devastation;
-        if(globalProgression.cooldowns.enchants === undefined) globalProgression.cooldowns.enchants = 0;
-        if(globalProgression.storyModeProgress.island_defense === undefined) globalProgression.storyModeProgress.island_defense = 0;
-        // Mark save version
-        if(globalProgression.saveVersion === undefined) globalProgression.saveVersion = 1;
-        // New fields for burglar, pets
-        if(globalProgression.usableItems === undefined) globalProgression.usableItems = {};
-        if(globalProgression.burglarDailyPurchases === undefined) globalProgression.burglarDailyPurchases = 0;
-        if(globalProgression.burglarLastPurchaseDate === undefined) globalProgression.burglarLastPurchaseDate = '';
-        if(globalProgression.petsOwned === undefined) globalProgression.petsOwned = [];
-        if(globalProgression.petBattlesWon === undefined) globalProgression.petBattlesWon = 0;
-        if(globalProgression.petBattleWinStreak === undefined) globalProgression.petBattleWinStreak = 0;
-        if(globalProgression.petBattleBestStreak === undefined) globalProgression.petBattleBestStreak = 0;
-        if(globalProgression.discoveredPets === undefined) globalProgression.discoveredPets = {};
-        if(globalProgression.claimedPetRewards === undefined) globalProgression.claimedPetRewards = {};
-        if(globalProgression.ultimatePetRewardClaimed === undefined) globalProgression.ultimatePetRewardClaimed = false;
-        if(globalProgression.petWinLoss === undefined) globalProgression.petWinLoss = {};
-        if(globalProgression.petBattleEnergy === undefined) globalProgression.petBattleEnergy = 10;
-        if(globalProgression.petBattleLastEnergyTime === undefined) globalProgression.petBattleLastEnergyTime = Date.now();
-        if(globalProgression.petFavorites === undefined) globalProgression.petFavorites = [];
-        if(globalProgression.inventory.magic_stone === undefined) globalProgression.inventory.magic_stone = 0;
-        // Migrate progressStats for existing saves
-        if (!player.progressStats) player.progressStats = {};
-        let ps = player.progressStats;
-        if (ps.levelReached === undefined) ps.levelReached = player.lvl || 1;
-        if (ps.highestDmg === undefined) ps.highestDmg = 0;
-        if (ps.mostDmgSurvived === undefined) ps.mostDmgSurvived = 0;
-        if (ps.longestWinStreak === undefined) ps.longestWinStreak = 0;
-        if (ps.currentWinStreak === undefined) ps.currentWinStreak = 0;
-        if (ps.totalKills === undefined) ps.totalKills = 0;
-        if (ps.totalDeaths === undefined) ps.totalDeaths = 0;
-        if (ps.battlesWon === undefined) ps.battlesWon = 0;
-        if (ps.battlesLost === undefined) ps.battlesLost = 0;
-        if (ps.mythicBossFound === undefined) ps.mythicBossFound = 0;
-        if (ps.maxDungeonCleared === undefined) ps.maxDungeonCleared = 0;
-        if (ps.bossesDefeated === undefined) ps.bossesDefeated = 0;
-        if (ps.goldSpent === undefined) ps.goldSpent = 0;
-        if (ps.highestGold === undefined) ps.highestGold = 0;
-        if (ps.gamblingWins === undefined) ps.gamblingWins = 0;
-        if (ps.gamblingLosses === undefined) ps.gamblingLosses = 0;
-        if (ps.totalPlayTimeSeconds === undefined) ps.totalPlayTimeSeconds = 0;
-        if (ps.potionsConsumed === undefined) ps.potionsConsumed = 0;
-        ps.sessionStartTime = Date.now();
-
-        // Migrate skillMenu properties for existing saves
-        if(player.skillMenuProgress === undefined) player.skillMenuProgress = 0;
-        if(player.skillMenuBonusDmgPct === undefined) player.skillMenuBonusDmgPct = 0;
-        if(player.skillMenuBonusDefPct === undefined) player.skillMenuBonusDefPct = 0;
-        if(player.skillMenuBonusHpPct === undefined) player.skillMenuBonusHpPct = 0;
-        if(player.skillMenuInfiniteAtk === undefined) player.skillMenuInfiniteAtk = 0;
-
-        if (globalProgression.lastQuestDate !== new Date().toDateString()) {
-            globalProgression.questsCompletedToday = 0;
-            globalProgression.lastQuestDate = new Date().toDateString();
+        if (typeof CLASSES === 'undefined') {
+            console.error('loadGameAndContinue: CLASSES is not defined. Ensure data.js is loaded.');
+            return;
         }
-        
-        // Re-link class data
-        if(!player.classId) player.classId = 'warrior';
-        player.data = CLASSES[player.classId];
-        // Migrate gender and apply gender avatar
-        if(globalProgression.gender === undefined) globalProgression.gender = 'male';
-        let genderAvatars = CLASS_GENDER_AVATARS[player.classId];
-        if (genderAvatars) { player.data = { ...player.data, avatar: genderAvatars[globalProgression.gender] }; }
+        const savedKey = LEGACY_SAVE_KEYS.find(k => localStorage.getItem(k));
+        const saved = savedKey ? localStorage.getItem(savedKey) : null;
+        console.log('loadGameAndContinue: saved data found =', !!saved, 'key =', savedKey);
+        if (saved) {
+            const savedJson = saved.includes('|') ? saved.split('|')[0] : saved;
+            const data = JSON.parse(savedJson);
+            globalProgression = data.global;
+            player = data.pState;
 
-        // Restore saved enemies from previous session
-        try {
-            let seData = localStorage.getItem('EternalAscensionSavedEnemies');
-            if (seData) { let parsed = JSON.parse(seData); if (parsed && typeof parsed === 'object') savedEnemies = parsed; }
-        } catch(e) { /* ignore parse errors */ }
+            // Fill in any fields missing due to version updates
+            applyDefaults(globalProgression, makeInitialGlobalProgression());
+            applyDefaults(player, makeInitialPlayerState());
 
-        if (typeof clampAttributes === 'function') clampAttributes();
-        showHub();
-    }
+            // --- Deletion migrations (attributes removed in newer versions) ---
+            if (globalProgression.attributes.devotion !== undefined) {
+                delete globalProgression.attributes.devotion;
+            }
+            if (globalProgression.attributes.devastation !== undefined) {
+                delete globalProgression.attributes.devastation;
+            }
+
+            // --- progressStats migration ---
+            // Old saves may not have progressStats as a nested object.
+            // applyDefaults already ensures it exists; here we handle value-based migrations.
+            if (!player.progressStats) {
+                player.progressStats = {};
+            }
+            applyDefaults(player.progressStats, makeInitialPlayerState().progressStats);
+            // For saves that predate progressStats, seed levelReached from the existing level
+            if (player.progressStats.levelReached === 1 && (player.lvl || 0) > 1) {
+                player.progressStats.levelReached = player.lvl;
+            }
+            // Always reset the session timer on load
+            player.progressStats.sessionStartTime = Date.now();
+
+            // --- Daily quest reset ---
+            if (globalProgression.lastQuestDate !== new Date().toDateString()) {
+                globalProgression.questsCompletedToday = 0;
+                globalProgression.lastQuestDate = new Date().toDateString();
+            }
+
+            // Re-link class data
+            if (!player.classId) {
+                player.classId = 'warrior';
+            }
+            player.data = CLASSES[player.classId];
+
+            // Apply gender-specific avatar
+            const genderAvatars = CLASS_GENDER_AVATARS[player.classId];
+            if (genderAvatars) {
+                player.data = { ...player.data, avatar: genderAvatars[globalProgression.gender] };
+            }
+
+            // Restore saved enemies from previous session
+            try {
+                const seData = localStorage.getItem('EternalAscensionSavedEnemies');
+                if (seData) {
+                    const parsed = JSON.parse(seData);
+                    if (parsed && typeof parsed === 'object') {
+                        savedEnemies = parsed;
+                    }
+                }
+            } catch (e) { /* ignore parse errors */ }
+
+            if (typeof clampAttributes === 'function') {
+                clampAttributes();
+            }
+            showHub();
+        }
     } catch (err) {
         console.error('loadGameAndContinue: failed to load game:', err);
         alert('Failed to load saved game. Your save may be corrupted. Error: ' + err.message);
-        // Try showing the menu so they can start fresh
-        try { switchScreen('screen-menu'); } catch(e) { console.error('loadGameAndContinue: fallback switchScreen failed', e); }
+        try { switchScreen('screen-menu'); } catch (e) { console.error('loadGameAndContinue: fallback switchScreen failed', e); }
     }
 }
-window.onload = () => { if(localStorage.getItem('EternalAscensionSaveDataV1') || localStorage.getItem('fogFighterSaveDataV22') || localStorage.getItem('fogFighterSaveDataV21') || localStorage.getItem('fogFighterSaveDataV20')) document.getElementById('btn-continue-save').classList.remove('hidden'); updateEnergy(); updateHp(); };
+window.onload = () => {
+    if (LEGACY_SAVE_KEYS.some(k => localStorage.getItem(k))) {
+        document.getElementById('btn-continue-save').classList.remove('hidden');
+    }
+    updateEnergy();
+    updateHp();
+};
 
 // --- UTILS & MATH ---
 function getXpForNextLevel(lvl) { 
@@ -1109,43 +1173,22 @@ function createFreshPlayer(classId) {
 }
 
 window.startGame = function(classId = 'warrior') {
-    globalProgression = {
-        gold: 100, kills: 0, dungeonTier: 1, tickets: 5, energy: 10, lastEnergyTime: Date.now(),
-        questProg1: 0, questGoal1: 3, questRwd1: 50, questRarity1: 'common', questType1: 'hunting',
-        questProg2: 0, questGoal2: 3, questRwd2: 100, questRarity2: 'common', questType2: 'pillage',
-        questProg3: 0, questGoal3: 3, questRwd3: 150, questRarity3: 'common', questType3: 'workshop',
-        questProg4: 0, questGoal4: 3, questRwd4: 200, questRarity4: 'common', questType4: 'dungeon',
-        questsCompletedToday: 0, lastQuestDate: new Date().toDateString(),
-        wellLastHealDate: '', wellXpBattles: 0, wellDropBattles: 0, wellLastXpDate: '', wellLastDropDate: '', wellLastEnergyDate: '', wellLastEnergy50Date: '', wellLastEnergy100Date: '',
-        lastHpRegenTime: Date.now(), enemyKillCounts: {}, claimedCodexMilestones: {},
-        totalExpEarned: 0, cooldowns: { herbs: 0, mine: 0, fish: 0, enchants: 0 },
-        inventory: { ench_common: 0, ench_rare: 0, ench_epic: 0, ench_legendary: 0, herb_red: 0, herb_blue: 0, fish_1: 0, fish_2: 0, fish_3: 0, fish_4: 0, fish_5: 0, fish_6: 0, soul_pebbles: 0, pot_i1: 30, pot_i2: 0, pot_i3: 0, pot_r1: 0, pot_r2: 0, pot_r3: 0, food_d1: 0, food_d2: 0, food_d3: 0, food_df1: 0, food_df2: 0, food_df3: 0, magic_stone: 0 },
-        usableItems: {},
-        equipInventory: [], equipped: { head: null, shoulders: null, chest: null, arms: null, waist: null, legs: null, boots: null, necklace: null, ring1: null, ring2: null, ring3: null, ring4: null, weapon: null, cape: null }, newItems: {},
-        attributes: getClassBaseAttributes(classId),
-        storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
-        settings: { sound: true, music: true, autoBattleTargetPriority: 'easy', autoBattleUsables: [] },
-        gender: 'male',
-        discoveredEnemies: {}, claimedCodexRewards: {}, killedBosses: {}, discoveredMythicBosses: [],
-        skillTreeEnhancements: [],
-        burglarDailyPurchases: 0, burglarLastPurchaseDate: '',
-        petsOwned: [], petBattlesWon: 0, petBattleWinStreak: 0, petBattleBestStreak: 0,
-        discoveredPets: {}, claimedPetRewards: {}, ultimatePetRewardClaimed: false,
-        petWinLoss: {},
-        petBattleEnergy: 10, petBattleLastEnergyTime: Date.now(),
-        petFavorites: [],
-        saveVersion: 2
-    };
+    globalProgression = makeInitialGlobalProgression();
+    // New games use class-specific starting attributes and starter potions
+    globalProgression.attributes = getClassBaseAttributes(classId);
+    globalProgression.inventory.pot_i1 = 30;
     player = createFreshPlayer(classId);
-    player.maxHp = calculateMaxHp(); player.currentHp = player.maxHp;
+    player.maxHp = calculateMaxHp();
+    player.currentHp = player.maxHp;
     // Grant one random starting pet
     if (typeof PET_DATA !== 'undefined' && PET_DATA.length > 0) {
-        let randomPet = PET_DATA[Math.floor(Math.random() * PET_DATA.length)];
+        const randomPet = PET_DATA[Math.floor(Math.random() * PET_DATA.length)];
         globalProgression.petsOwned.push(randomPet.id);
         globalProgression.discoveredPets[randomPet.name] = true;
     }
-    saveGame(); showHub();
-}
+    saveGame();
+    showHub();
+};
 
 // --- SETTINGS ---
 function showSettings() {
@@ -1590,15 +1633,18 @@ function checkLevelUp() {
     let levelsGained = 0;
     // Cap at 5 levels per call to prevent huge jumps from large XP gains (e.g. quest rewards)
     const MAX_LEVELS_PER_CHECK = 5;
-    while(player.lvl < 500 && levelsGained < MAX_LEVELS_PER_CHECK) {
-        let xpNeeded = getXpForNextLevel(player.lvl);
-        if(player.xp < xpNeeded) break;
-        player.lvl++; player.xp -= xpNeeded; player.statPoints += 5;
+    while (player.lvl < 500 && levelsGained < MAX_LEVELS_PER_CHECK) {
+        const xpNeeded = getXpForNextLevel(player.lvl);
+        if (player.xp < xpNeeded) break;
+        player.lvl++;
+        player.xp -= xpNeeded;
+        player.statPoints += 5;
         player.skillPoints++;
         levelsGained++;
     }
-    if(levelsGained > 0) {
-        player.maxHp = calculateMaxHp(); player.currentHp = player.maxHp;
+    if (levelsGained > 0) {
+        player.maxHp = calculateMaxHp();
+        player.currentHp = player.maxHp;
         if (typeof clampAttributes === 'function') clampAttributes();
         playSound('win');
         document.getElementById('hub-level-up-noti').classList.remove('hidden');
