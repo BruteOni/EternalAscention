@@ -360,7 +360,7 @@ let globalProgression = {
     petWinLoss: {},
     petBattleEnergy: 10, petBattleLastEnergyTime: Date.now(),
     blackMarketTier: 0,
-    patchV1Applied: false,
+    patchV1Applied: true,
     saveVersion: 2
 };
 const TREE_NODES = [];
@@ -642,7 +642,7 @@ function makeInitialGlobalProgression() {
             revival: 0, vampire: 0, defense: 0
         },
         storyModeProgress: { hunting: 0, pillage: 0, workshop: 0, island_defense: 0 },
-        settings: { sound: true, music: true, autoBattleTargetPriority: 'easy', autoBattleUsables: [] },
+        settings: { sound: true, music: true, autoBattleTargetPriority: 'easy', autoBattleUsables: [], autoUseRegenAt75: true },
         gender: 'male',
         discoveredEnemies: {}, claimedCodexRewards: {}, killedBosses: {}, discoveredMythicBosses: [],
         skillTreeEnhancements: [],
@@ -658,7 +658,7 @@ function makeInitialGlobalProgression() {
         pebbleBonusArmorPierce: 0,
         pebbleBonusHp: 0,
         pebbleBonusDef: 0,
-        patchV1Applied: false,
+        patchV1Applied: true,
         saveVersion: 2
     };
 }
@@ -784,6 +784,14 @@ function loadGameAndContinue() {
 
             // --- Patch V1: one-time attribute + skill tree reset ---
             if (!globalProgression.patchV1Applied) {
+                // Safety guard: warn if patch fires on a save that already has significant progress.
+                // Point budget formula: 1 point per level up to 50, then 2 points per level above 50.
+                const spentPoints = (player.statPoints !== undefined && player.lvl > 0)
+                    ? Math.min(player.lvl, 50) + Math.max(0, player.lvl - 50) * 2 - (player.statPoints || 0)
+                    : 0;
+                if (spentPoints > 5 || (player.skillMenuProgress || 0) > 3) {
+                    console.warn('PatchV1: firing on save with significant progress — statPoints spent:', spentPoints, 'skillMenuProgress:', player.skillMenuProgress || 0);
+                }
                 // Respec all attributes to base values and refund points
                 const patchAttrs = ['hp','tenacity','agility','willpower','resistance','reflexes','fury','rawPower','force','revival','vampire','defense','happiness'];
                 let patchClassBase = getClassBaseAttributes(player.classId || 'warrior');
@@ -1122,6 +1130,8 @@ function selectGenderAndStart(gender, chosenAvatar) {
             player = data.pState;
             // Apply defaults for any missing fields (same as loadGameAndContinue)
             applyDefaults(globalProgression, { petFavorites: [] });
+            // Preserve patchV1Applied so the migration never re-fires after class switch
+            if (data.global.patchV1Applied) globalProgression.patchV1Applied = true;
             if(!globalProgression.inventory) globalProgression.inventory = {};
             if(globalProgression.inventory.magic_stone === undefined) globalProgression.inventory.magic_stone = 0;
             applyDefaults(player, { nodeEnhancements: {} });
@@ -1375,6 +1385,12 @@ function toggleAutoBattleUsable(key) {
     renderAutoBattleSettingsModal();
 }
 
+function toggleAutoRegenAt75() {
+    globalProgression.settings.autoUseRegenAt75 = !globalProgression.settings.autoUseRegenAt75;
+    saveGame();
+    renderAutoBattleSettingsModal();
+}
+
 function renderAutoBattleSettingsModal() {
     const priority = globalProgression.settings.autoBattleTargetPriority || 'easy';
     const selected = globalProgression.settings.autoBattleUsables || [];
@@ -1390,6 +1406,14 @@ function renderAutoBattleSettingsModal() {
             easyBtn.className = 'flex-1 py-2 rounded font-bold text-white transition active:scale-95 bg-gray-700 hover:bg-gray-600';
             hardBtn.className = 'flex-1 py-2 rounded font-bold text-white transition active:scale-95 bg-red-600 hover:bg-red-500';
         }
+    }
+
+    // Render regen at 75% toggle
+    const regen75Btn = document.getElementById('abt-btn-regen75');
+    if (regen75Btn) {
+        const isOn = globalProgression.settings.autoUseRegenAt75 !== false; // default true
+        regen75Btn.innerText = isOn ? 'ON' : 'OFF';
+        regen75Btn.className = `px-4 py-2 rounded font-bold text-white transition active:scale-95 ${isOn ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'}`;
     }
 
     // Render usable items list
