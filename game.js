@@ -282,7 +282,8 @@ function playBossSong1() {
     bass.type = 'sine'; bass.frequency.value = 65.41;
     bass.connect(bassGain); bassGain.connect(audioCtx.destination);
     bassGain.gain.setValueAtTime(0, now); bassGain.gain.linearRampToValueAtTime(0.04, now + 3);
-    bass.start(now); activeOscillators.push({osc: bass, gain: bassGain});
+    bass.start(now); const bassEntry = {osc: bass, gain: bassGain}; activeOscillators.push(bassEntry);
+    bass.onended = () => { const i = activeOscillators.indexOf(bassEntry); if (i !== -1) activeOscillators.splice(i, 1); bassGain.disconnect(); };
     // Slow melody
     const mel = audioCtx.createOscillator(); const melGain = audioCtx.createGain();
     mel.type = 'sine';
@@ -290,7 +291,8 @@ function playBossSong1() {
     let t = now; melody.forEach(([f, d]) => { mel.frequency.setValueAtTime(f, t); t += d; });
     mel.connect(melGain); melGain.connect(audioCtx.destination);
     melGain.gain.setValueAtTime(0, now); melGain.gain.linearRampToValueAtTime(0.025, now + 4);
-    mel.start(now); activeOscillators.push({osc: mel, gain: melGain});
+    mel.start(now); const melEntry = {osc: mel, gain: melGain}; activeOscillators.push(melEntry);
+    mel.onended = () => { const i = activeOscillators.indexOf(melEntry); if (i !== -1) activeOscillators.splice(i, 1); melGain.disconnect(); };
     const totalDur = melody.reduce((s, [f,d]) => s+d, 0);
     musicLoopTimeoutId = setTimeout(() => { if(globalProgression.settings.music && activeOscillators.length > 0) playBossSong1(); }, totalDur * 1000);
 }
@@ -306,7 +308,8 @@ function playBossSong2() {
     let t = now; penta.forEach(([f,d]) => { osc.frequency.setValueAtTime(f, t); t += d; });
     osc.connect(gain); gain.connect(audioCtx.destination);
     gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.035, now + 3);
-    osc.start(now); activeOscillators.push({osc, gain});
+    osc.start(now); const oscEntry = {osc, gain}; activeOscillators.push(oscEntry);
+    osc.onended = () => { const i = activeOscillators.indexOf(oscEntry); if (i !== -1) activeOscillators.splice(i, 1); gain.disconnect(); };
     const totalDur = penta.reduce((s, [f,d]) => s+d, 0);
     musicLoopTimeoutId = setTimeout(() => { if(globalProgression.settings.music && activeOscillators.length > 0) playBossSong2(); }, totalDur * 1000);
 }
@@ -402,13 +405,8 @@ let petBattleAutoMode = false; let petBattleAutoTimer = null;
 
 // --- ENERGY SYSTEM ---
 
-// Lazy DOM element cache - avoids repeated document.getElementById calls inside setInterval callbacks
-const _elCache = {};
 function getEl(id) {
-    if (!_elCache[id]) {
-        _elCache[id] = document.getElementById(id);
-    }
-    return _elCache[id];
+    return document.getElementById(id);
 }
 
 function getMaxEnergy() {
@@ -529,7 +527,6 @@ function ensureProgressStats() {
             sessionStartTime: Date.now()
         };
     }
-    if (player.progressStats.sessionStartTime === undefined) player.progressStats.sessionStartTime = Date.now();
     return player.progressStats;
 }
 
