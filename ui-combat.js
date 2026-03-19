@@ -1,3 +1,10 @@
+// structuredClone polyfill for older browsers
+if (typeof structuredClone === 'undefined') {
+    window.structuredClone = function(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    };
+}
+
 // --- MAIN MENU & SCREEN NAVIGATION ---
 // Note: confirmNewGame, closeConfirmNewGame, confirmNewGameYes, and switchScreen are defined in game.js.
 
@@ -114,6 +121,29 @@ function showDamageNumber(targetId, damage, isCrit) {
 }
 
 
+function createBaseEnemy() {
+    return {
+        shield: 0, healBlock: 0, defReduction: 0, defReductionTurns: 0,
+        bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0,
+        poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0,
+        dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0,
+        stunned: 0, def: 0, rarity: 'common', isBoss: false, isMythicBoss: false,
+        skills: [], cooldowns: {}, dmgBoostMult: 1, dmgBoostTurns: 0,
+        enemyReflect: 0, enemyReflectTurns: 0, darknessTurns: 0, darknessChance: 0,
+        missStacks: 0, templateMults: null
+    };
+}
+
+function getHealingMultipliers() {
+    const a = globalProgression.attributes || {};
+    const healMult = (player.activeBuffs && player.activeBuffs.some(b => b.type === 'poison')) ? 0.5 : 1.0;
+    let healingBuffMult = 1.0 + ((a.happiness || 0) * 0.0025) + getEquipBonusStat('bonusHealing');
+    if (player.activeBuffs) {
+        player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => { healingBuffMult += b.val; });
+    }
+    return { healMult, healingBuffMult };
+}
+
 function generateEnemies() {
     // Check for persisted enemies in this mode (exclude special modes)
     if (!NON_PERSIST_MODES.includes(currentMode)) {
@@ -146,12 +176,12 @@ function generateEnemies() {
     enemies = [];
     
     if (currentMode === 'quest') { 
-        for(let i=0; i<4; i++) { let e = { shield: 0, healBlock: 0, defReduction: 0, bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0, poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0, dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0, rarity: 'common', lvl: 1, name: 'Weak Target', avatar: '🎯', maxHp: 1, baseDmg: 0, currentHp: 1 }; assignEnemySkills(e); enemies.push(e); } 
+        for(let i=0; i<4; i++) { let e = Object.assign(createBaseEnemy(), { lvl: 1, name: 'Weak Target', avatar: '🎯', maxHp: 1, baseDmg: 0, currentHp: 1 }); assignEnemySkills(e); enemies.push(e); } 
         activeTargetIndex = 0; return; 
     }
 
     if (currentMode === 'training') {
-        let e = { shield: 0, healBlock: 0, defReduction: 0, bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0, poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0, dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0, rarity: 'common', isBoss: false, lvl: 1, name: 'Training Dummy', avatar: '🎯', maxHp: 9999999, baseDmg: 0, skills: [] };
+        let e = Object.assign(createBaseEnemy(), { lvl: 1, name: 'Training Dummy', avatar: '🎯', maxHp: 9999999, baseDmg: 0 });
         e.currentHp = e.maxHp;
         enemies.push(e);
         activeTargetIndex = 0;
@@ -160,7 +190,7 @@ function generateEnemies() {
 
     if (currentMode === 'graveyard') {
         let baseBoss = globalProgression.killedBosses[activeGraveyardBoss];
-        let e = { shield: 0, healBlock: 0, defReduction: 0, bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0, poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0, dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0, rarity: 'boss', isBoss: true };
+        let e = Object.assign(createBaseEnemy(), { rarity: 'boss', isBoss: true });
         e.lvl = Math.max(1, player.lvl + 2);
         e.name = baseBoss.name; e.avatar = baseBoss.avatar;
         e.maxHp = Math.max(1, Math.floor(25 * baseBoss.hpMult * (1 + (e.lvl - 1) * 0.4) * 3)); 
@@ -184,7 +214,7 @@ function generateEnemies() {
         ];
         for(let i = 0; i < invasionMaxOnScreen; i++) {
             let t = allBossTemplates[Math.floor(Math.random() * allBossTemplates.length)];
-            let e = { shield: 0, healBlock: 0, defReduction: 0, bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0, poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0, dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0, rarity: 'boss', isBoss: true };
+            let e = Object.assign(createBaseEnemy(), { rarity: 'boss', isBoss: true });
             e.lvl = invasionLevel;
             e.name = 'Invader ' + t.name; e.avatar = t.avatar;
             e.maxHp = Math.max(1, Math.floor(25 * t.hpMult * (1 + (invasionLevel - 1) * 0.4) * 5));
@@ -226,7 +256,7 @@ function generateEnemies() {
         let mythicPrefixes = ['Void', 'Celestial', 'Primordial', 'Abyssal', 'Eternal', 'Cosmic', 'Ancient', 'Infernal', 'Divine', 'Sovereign'];
         let mythicSuffixes = ['Harbinger', 'Annihilator', 'Devourer', 'Destroyer', 'Colossus', 'Overlord', 'Titan', 'Ravager', 'Obliterator', 'God'];
         let mName = mythicPrefixes[Math.floor(Math.random() * mythicPrefixes.length)] + ' ' + mythicSuffixes[Math.floor(Math.random() * mythicSuffixes.length)];
-        let e = { shield: 0, healBlock: 0, defReduction: 0, bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0, poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0, dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0, rarity: 'mythic', isBoss: true, isMythicBoss: true };
+        let e = Object.assign(createBaseEnemy(), { rarity: 'mythic', isBoss: true, isMythicBoss: true });
         e.lvl = Math.max(1, player.lvl + 5);
         e.name = mName;
         e.avatar = '✨';
@@ -249,7 +279,7 @@ function generateEnemies() {
     }
 
     for(let i=0; i<count; i++) {
-        let e = { shield: 0, healBlock: 0, defReduction: 0, bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0, poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0, dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0, def: 0, rarity: 'common', isBoss: false };
+        let e = createBaseEnemy();
         
         if (currentMode === 'dungeon' && activeDungeonRoom === 5) {
             e.lvl = activeDungeonTier * 5; 
@@ -344,7 +374,8 @@ function startBattle(isNewEncounter = false) {
     Object.keys(player.usableCooldowns).forEach(k => player.usableCooldowns[k] = 0);
     // Clear any silenced slots at battle start
     player.silencedSlots = {};
-    combatLog = [`Encountered ${enemies.length} enemies!`, "Fight!"]; isPlayerTurn = true;
+    combatLog = []; var logDiv = document.getElementById('combat-log'); if (logDiv) logDiv.innerHTML = '';
+    addLog(`Encountered ${enemies.length} enemies!`); addLog("Fight!"); isPlayerTurn = true;
     updateCombatUI(); renderSkills(); renderUsableSlots(); switchScreen('screen-combat');
     // Handle training mode: disable AUTO button
     const autoBtn = document.getElementById('btn-auto');
@@ -595,7 +626,7 @@ function useConsumable(key) {
     if(player.usedConsumableThisTurn) { addLog('Already used a consumable this turn!', 'text-gray-400'); return; }
     globalProgression.inventory[key]--; let c = CONSUMABLES[key];
     
-    let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
+    let { healMult } = getHealingMultipliers();
 
     if(c.type === 'instant' || c.type === 'buff_hp') {
         let heal = Math.floor(player.maxHp * c.val * healMult); if(c.type === 'buff_hp') heal = Math.floor(player.maxHp * 0.2 * healMult);
@@ -614,31 +645,56 @@ function useConsumable(key) {
     if(isAutoBattle) setTimeout(processAutoTurn, 300);
 }
 
+let _combatUICache = null;
+function getCombatUIElements() {
+    if (!_combatUICache) {
+        _combatUICache = {
+            uiLevel: document.getElementById('ui-level'),
+            uiModeBadge: document.getElementById('ui-mode-badge'),
+            playerAvatar: document.getElementById('combat-player-avatar'),
+            playerClass: document.getElementById('combat-player-class'),
+            hpText: document.getElementById('combat-player-hp-text'),
+            hpBar: document.getElementById('combat-player-hp'),
+            xpBar: document.getElementById('combat-player-xp'),
+            xpBarCont: document.getElementById('combat-xp-bar-container'),
+            shieldInd: document.getElementById('player-shield-indicator'),
+            regenInd: document.getElementById('player-regen-indicator'),
+            dizzyInd: document.getElementById('player-dizzy-indicator'),
+            stunInd: document.getElementById('player-stun-indicator'),
+            buffsEl: document.getElementById('combat-active-buffs'),
+            eContainer: document.getElementById('enemies-container'),
+            turnInd: document.getElementById('turn-indicator'),
+            nextBattleBtn: document.getElementById('next-battle-container')
+        };
+    }
+    return _combatUICache;
+}
+
 function updateCombatUI() {
-    document.getElementById('ui-level').innerText = `Level ${player.lvl}`;
+    if (!player || !player.data) return;
+    var ui = getCombatUIElements();
+    if (ui.uiLevel) ui.uiLevel.innerText = `Level ${player.lvl}`;
     let modeText = currentMode === 'training' ? '🎯 Training Ground' : currentMode === 'dungeon' ? `XP Dungeon T${activeDungeonTier} (Rm ${activeDungeonRoom})` : currentMode === 'hunting' ? 'Wilderness' : currentMode === 'pillage' ? 'Pillage Village' : currentMode === 'workshop' ? 'Workshop Raid' : currentMode === 'graveyard' ? 'Graveyard' : 'Quest Marathon';
     
     if(currentMode === 'hunting' || currentMode === 'pillage' || currentMode === 'workshop') {
         modeText += ` (${globalProgression.storyModeProgress[currentMode] + 1}/10)`;
     }
 
-    document.getElementById('ui-mode-badge').innerText = modeText;
+    if (ui.uiModeBadge) ui.uiModeBadge.innerText = modeText;
 
-    if (player && player.data) {
-        const pAvatar = document.getElementById('combat-player-avatar'); if (pAvatar) setAvatarDisplay('combat-player-avatar', player.data.avatar);
-        const pClass = document.getElementById('combat-player-class'); if (pClass) pClass.innerText = `${player.data.name} Lv.${player.lvl}`;
-    }
+    if (ui.playerAvatar) setAvatarDisplay('combat-player-avatar', player.data.avatar);
+    if (ui.playerClass) ui.playerClass.innerText = `${player.data.name} Lv.${player.lvl}`;
     
-    const hpText = document.getElementById('combat-player-hp-text'); if (hpText) hpText.innerText = `${Math.ceil(Math.max(0, player.currentHp))}/${player.maxHp}`;
-    const hpBar = document.getElementById('combat-player-hp'); if (hpBar) hpBar.style.width = `${(Math.max(0, player.currentHp) / player.maxHp) * 100}%`;
-    const xpBar = document.getElementById('combat-player-xp'); if (xpBar) xpBar.style.width = `${(player.xp / getXpForNextLevel(player.lvl)) * 100}%`;
+    if (ui.hpText) ui.hpText.innerText = `${Math.ceil(Math.max(0, player.currentHp))}/${player.maxHp}`;
+    if (ui.hpBar) ui.hpBar.style.width = `${(Math.max(0, player.currentHp) / player.maxHp) * 100}%`;
+    if (ui.xpBar) ui.xpBar.style.width = `${(player.xp / getXpForNextLevel(player.lvl)) * 100}%`;
     
-    const xpBarCont = document.getElementById('combat-xp-bar-container'); if(xpBarCont) xpBarCont.style.display = currentMode === 'quest' ? 'none' : 'block';
+    if (ui.xpBarCont) ui.xpBarCont.style.display = currentMode === 'quest' ? 'none' : 'block';
 
-    const shieldInd = document.getElementById('player-shield-indicator'); if (shieldInd) shieldInd.style.display = player.shield > 0 ? 'block' : 'none';
-    const regenInd = document.getElementById('player-regen-indicator'); if (regenInd) regenInd.style.display = player.regenBuffs.length > 0 ? 'block' : 'none';
-    const dizzyInd = document.getElementById('player-dizzy-indicator'); if (dizzyInd) dizzyInd.style.display = (player.activeBuffs && player.activeBuffs.some(b => b.type === 'healingBuff')) ? 'block' : 'none';
-    const stunInd = document.getElementById('player-stun-indicator'); if (stunInd) stunInd.style.display = player.stunned > 0 ? 'block' : 'none';
+    if (ui.shieldInd) ui.shieldInd.style.display = player.shield > 0 ? 'block' : 'none';
+    if (ui.regenInd) ui.regenInd.style.display = player.regenBuffs.length > 0 ? 'block' : 'none';
+    if (ui.dizzyInd) ui.dizzyInd.style.display = (player.activeBuffs && player.activeBuffs.some(b => b.type === 'healingBuff')) ? 'block' : 'none';
+    if (ui.stunInd) ui.stunInd.style.display = player.stunned > 0 ? 'block' : 'none';
 
     let activeBuffsHtml = '';
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'dmg')) activeBuffsHtml += `<span class="bg-orange-900 text-xs px-1 rounded border border-orange-500 shadow-md">⚔️UP</span>`;
@@ -653,9 +709,9 @@ function updateCombatUI() {
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'skill_reflect')) activeBuffsHtml += `<span class="bg-orange-800 text-xs px-1 rounded border border-orange-400 shadow-md">🔄Reflect</span>`;
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'double_damage_taken')) activeBuffsHtml += `<span class="bg-red-800 text-xs px-1 rounded border border-red-400 shadow-md">⚠️2xDmg</span>`;
     
-    const buffsEl = document.getElementById('combat-active-buffs'); if (buffsEl) buffsEl.innerHTML = activeBuffsHtml;
+    if (ui.buffsEl) ui.buffsEl.innerHTML = activeBuffsHtml;
 
-    const eContainer = document.getElementById('enemies-container'); 
+    const eContainer = ui.eContainer; 
     if (eContainer) {
         eContainer.innerHTML = '';
         if(enemies[activeTargetIndex] && enemies[activeTargetIndex].currentHp <= 0) { activeTargetIndex = enemies.findIndex(e => e.currentHp > 0); if(activeTargetIndex === -1) activeTargetIndex = 0; }
@@ -728,19 +784,18 @@ function updateCombatUI() {
             eContainer.appendChild(placeholder);
         }
         // Show Next Battle button when all enemies are dead and combat still active
-        const nextBattleBtn = document.getElementById('next-battle-container');
-        if(nextBattleBtn) nextBattleBtn.style.display = (combatActive && enemies.length > 0 && enemies.every(e => e.currentHp <= 0)) ? 'flex' : 'none';
+        if (ui.nextBattleBtn) ui.nextBattleBtn.style.display = (combatActive && enemies.length > 0 && enemies.every(e => e.currentHp <= 0)) ? 'flex' : 'none';
     }
 
-    const turnInd = document.getElementById('turn-indicator');
-    if (turnInd) {
-        if (isPlayerTurn) { turnInd.innerText = isAutoBattle ? "[AUTO] YOUR TURN" : "YOUR TURN"; turnInd.className = "text-center text-xs mb-1 text-green-400 font-bold uppercase tracking-widest drop-shadow"; } 
-        else { turnInd.innerText = "ENEMY TURN..."; turnInd.className = "text-center text-xs mb-1 text-red-400 uppercase tracking-widest animate-pulse drop-shadow"; }
+    if (ui.turnInd) {
+        if (isPlayerTurn) { ui.turnInd.innerText = isAutoBattle ? "[AUTO] YOUR TURN" : "YOUR TURN"; ui.turnInd.className = "text-center text-xs mb-1 text-green-400 font-bold uppercase tracking-widest drop-shadow"; } 
+        else { ui.turnInd.innerText = "ENEMY TURN..."; ui.turnInd.className = "text-center text-xs mb-1 text-red-400 uppercase tracking-widest animate-pulse drop-shadow"; }
     }
     renderUsableSlots();
 }
 
 function renderSkills() {
+    if (!player || !player.data) return;
     const container = document.getElementById('skills-container');
     const descDisplay = document.getElementById('skill-description-display');
     const defaultDesc = 'Tap a skill to see what it does';
@@ -808,9 +863,17 @@ function renderSkills() {
     grid.appendChild(makeSkillBtn(4, true, false));
 }
 
-function addLog(msg, colorClass = "text-gray-300") {
-    combatLog.push(`<span class="${colorClass}">${msg}</span>`); if (combatLog.length > 20) combatLog.shift();
-    const logDiv = document.getElementById('combat-log'); logDiv.innerHTML = combatLog.map(m => `<div>${m}</div>`).join(''); logDiv.scrollTop = logDiv.scrollHeight;
+function addLog(msg, colorClass) {
+    colorClass = colorClass || "text-gray-300";
+    var logDiv = document.getElementById('combat-log');
+    if (!logDiv) return;
+    var entry = document.createElement('div');
+    entry.innerHTML = '<span class="' + colorClass + '">' + msg + '</span>';
+    logDiv.appendChild(entry);
+    while (logDiv.childElementCount > 20) {
+        logDiv.removeChild(logDiv.firstChild);
+    }
+    logDiv.scrollTop = logDiv.scrollHeight;
 }
 
 function triggerAnim(elementId, animClass) {
@@ -824,7 +887,7 @@ function processAutoTurn() {
     if(enemies.every(e => e.currentHp <= 0)) { if(combatActive) endBattle(true); return; }
     let hpPct = player.currentHp / player.maxHp; let inv = globalProgression.inventory;
     
-    let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
+    let { healMult } = getHealingMultipliers();
 
     if(!player.usedConsumableThisTurn) {
         if(hpPct < 0.4) { if(inv.pot_i3 > 0) return useConsumable('pot_i3'); if(inv.pot_i2 > 0) return useConsumable('pot_i2'); if(inv.pot_i1 > 0) return useConsumable('pot_i1'); }
@@ -897,10 +960,8 @@ function processAutoTurn() {
 }
 
 function processRegenAndBuffs() {
-    let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
-    let a = globalProgression.attributes;
-    let healingBuffMult = 1.0 + ((a.happiness || 0) * 0.0025) + getEquipBonusStat('bonusHealing');
-    if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
+    let { healMult, healingBuffMult } = getHealingMultipliers();
+    let a = globalProgression.attributes || {};
     // HP Regen: revival attr (0.2% per point) + gear bonusHpRegen
     let hpRegenAmt = Math.floor(player.maxHp * ((a.revival || 0) * 0.002 + getEquipBonusStat('bonusHpRegen')));
     let treeRegen = Math.floor(((player.treeBonusRegen || 0) + hpRegenAmt) * healMult * healingBuffMult);
@@ -1122,7 +1183,7 @@ function usePlayerSkill(slotIndex) {
                 // Vampire: life steal from attribute (0.25% per point) + gear bonusVamp
                 let vampPct = ((a.vampire || 0) * 0.0025) + getEquipBonusStat('bonusVamp');
                 if(vampPct > 0 && hitDmg > 0) {
-                    let healingBuffMult = 1.0 + ((a.happiness || 0) * 0.0025) + getEquipBonusStat('bonusHealing');
+                    let { healingBuffMult } = getHealingMultipliers();
                     let vampHeal = Math.max(1, Math.floor(hitDmg * vampPct * healingBuffMult));
                     player.currentHp = Math.min(player.maxHp, player.currentHp + vampHeal);
                     showFloatText('player-avatar-container', `+${vampHeal} 🧛`, 'text-violet-400');
@@ -1216,9 +1277,7 @@ function usePlayerSkill(slotIndex) {
                 let pokeSelfPct = skill.pokeSelfHealPct || pokeEnemyPct;
                 let pokeDmg = Math.floor(pokeTarget.maxHp * pokeEnemyPct);
                 pokeTarget.currentHp = Math.max(0, pokeTarget.currentHp - pokeDmg);
-                let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
-                let healingBuffMult = 1.0 + ((globalProgression.attributes.happiness || 0) * 0.0025) + getEquipBonusStat('bonusHealing');
-                if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
+                let { healMult, healingBuffMult } = getHealingMultipliers();
                 let pokeHeal = Math.floor(player.maxHp * pokeSelfPct * healMult * healingBuffMult);
                 player.currentHp = Math.min(player.maxHp, player.currentHp + pokeHeal);
                 showFloatText('player-avatar-container', `+${pokeHeal}`, 'text-green-400');
@@ -1228,9 +1287,7 @@ function usePlayerSkill(slotIndex) {
         }
 
     } else if (skill.type === 'heal') {
-        let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
-        let healingBuffMult = 1.0 + ((globalProgression.attributes.happiness || 0) * 0.0025) + getEquipBonusStat('bonusHealing');
-        if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
+        let { healMult, healingBuffMult } = getHealingMultipliers();
         let actualHeal = Math.floor(scaledPower * healMult * healingBuffMult);
         playSound('heal'); triggerAnim('combat-player-avatar', 'anim-heal'); 
         player.currentHp = Math.min(player.maxHp, player.currentHp + actualHeal); addLog(`Used ${skill.name}! Recovered ${actualHeal} HP!`, "text-green-400 font-bold"); showFloatText('player-avatar-container', `+${actualHeal}`, 'text-green-400');
@@ -1279,9 +1336,7 @@ function usePlayerSkill(slotIndex) {
     }
 
     if(skill.self_effect) {
-        let healMult = player.activeBuffs.some(b => b.type === 'poison') ? 0.5 : 1.0;
-        let healingBuffMult = 1.0 + ((globalProgression.attributes.happiness || 0) * 0.0025) + getEquipBonusStat('bonusHealing');
-        if(player.activeBuffs) player.activeBuffs.filter(b => b.type === 'healingBuff').forEach(b => healingBuffMult += b.val);
+        let { healMult, healingBuffMult } = getHealingMultipliers();
         if(skill.self_effect.healPct) { let h = Math.floor(player.maxHp * skill.self_effect.healPct * healMult * healingBuffMult); player.currentHp = Math.min(player.maxHp, player.currentHp + h); showFloatText('player-avatar-container', `+${h}`, 'text-green-400'); }
         if(skill.self_effect.fullHeal) { player.currentHp = player.maxHp; showFloatText('player-avatar-container', `FULL HEAL!`, 'text-green-400 font-bold'); playSound('heal'); addLog(`Full HP restored!`, 'text-green-400 font-bold'); }
         if(skill.self_effect.defDown) { player.activeBuffs.push({ type: 'def_down', val: 1 - skill.self_effect.defDown, turns: skill.self_effect.turns }); }

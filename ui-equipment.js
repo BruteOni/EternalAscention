@@ -1,5 +1,12 @@
 // --- EQUIPMENT CONSTANTS ---
 const GEAR_BUY_PRICES = { common: 100, rare: 200, epic: 600, legendary: 1000, mythic: 5000 };
+
+// --- SET TIER HELPER ---
+function getActiveSetTier(equippedCount) {
+    let activeTier = 0;
+    [4, 8, 12, 14].forEach(t => { if (equippedCount >= t) activeTier = t; });
+    return activeTier;
+}
 // Sell prices are 50% of buy price
 const GEAR_SELL_PRICES = { common: 50, rare: 100, epic: 300, legendary: 500, mythic: 2500 };
 
@@ -24,17 +31,17 @@ function renderSetBonusHtml(item) {
     // Count equipped pieces of this set
     let equipped = globalProgression.equipped || {};
     let count = Object.values(equipped).filter(e => e && e.setBonus && e.setBonus.setKey === item.setBonus.setKey).length;
-    let activeTier = 0;
-    [4, 8, 12, 14].forEach(t => { if(count >= t) activeTier = t; });
+    let activeTier = getActiveSetTier(count);
     let html = `<div class="text-[10px] mt-0.5 ${setDef.color} font-bold">💎 Set: ${setDef.name} (${count} equipped)</div>`;
     Object.entries(setDef.bonuses).forEach(([tier, desc]) => {
-        let tierNum = parseInt(tier);
+        let tierNum = parseInt(tier, 10);
         let isActive = activeTier >= tierNum;
         html += `<div class="text-[9px] ${isActive ? setDef.color + ' set-bonus-active font-bold' : 'text-gray-500'}">${tierNum}pc: ${desc}</div>`;
     });
     return html;
 }
 function openEquipModal(slot) {
+    if (!globalProgression || !globalProgression.equipped) return;
     activeEquipSlot = slot;
     let baseSlotType = slot.startsWith('ring') ? 'ring' : slot;
     
@@ -139,6 +146,7 @@ function equipItem(itemId) {
 }
 
 function rollEquipment(forcedRarity = null) {
+    if (!player) return null;
     let slotTypes = ['head', 'shoulders', 'chest', 'arms', 'waist', 'legs', 'boots', 'necklace', 'ring', 'weapon', 'cape'];
     let sType = slotTypes[Math.floor(Math.random() * slotTypes.length)];
 
@@ -169,7 +177,9 @@ function rollEquipment(forcedRarity = null) {
 
     let SLOT_ICONS = { head:'🪖', shoulders:'🛡️', chest:'🦺', arms:'🦾', waist:'🪢', legs:'👖', boots:'🥾', necklace:'📿', ring:'💍', cape:'🧥', weapon: weaponIcon };
     let e = {
-        id: 'eq_' + Date.now() + Math.floor(Math.random()*1000), type: sType, rarity: r, 
+        id: typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : 'eq_' + Date.now() + '_' + Math.floor(Math.random() * 1e9) + '_' + Math.floor(Math.random() * 1e9), type: sType, rarity: r, 
         name: sType === 'weapon' ? `${r.toUpperCase()} ${weaponName} [Lv.${itemLevel}]` : `${r.toUpperCase()} ${sType} [Lv.${itemLevel}]`,
         icon: SLOT_ICONS[sType] || '📦',
         stats: {},
