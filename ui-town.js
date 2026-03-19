@@ -1193,3 +1193,89 @@ function startTraining() {
     currentMode = 'training';
     startBattle(true);
 }
+
+// --- BLACK MARKET ---
+function showBlackMarket() {
+    let p = globalProgression;
+    let tiers = p.blackMarketTiers || [false,false,false,false,false];
+    let totalNodes = player ? (player.skillMenuProgress || 0) : 0;
+    let spentSP = p.blackMarketSpentSP || 0;
+    let excessSP = Math.max(0, totalNodes - 25) - spentSP;
+
+    document.getElementById('bm-sp-display').innerText = excessSP;
+
+    const list = document.getElementById('bm-tiers-list');
+    list.innerHTML = '';
+
+    const tierDefs = [
+        { cost: 75,  name: 'Avatar Border Glow',  desc: 'Grants your avatar a radiant gradient border effect. Auto-equipped.',       icon: '✨' },
+        { cost: 100, name: 'Sixth Skill Slot',     desc: 'Unlocks a 6th skill slot in combat and class menu.',                        icon: '⚔️' },
+        { cost: 100, name: 'Stunback Passive',     desc: 'When stun ends, deal 50% base damage to the enemy. Permanent.',            icon: '💥' },
+        { cost: 100, name: 'Misfire Passive',      desc: 'When you miss, still deal 50% base damage. Permanent.',                    icon: '🎯' },
+        { cost: 100, name: 'CD Reduction -2',      desc: 'All skill cooldowns reduced by 2 (minimum 0). Permanent.',                 icon: '⏱️' },
+    ];
+
+    tierDefs.forEach((td, i) => {
+        let isPurchased = tiers[i];
+        let prevUnlocked = i === 0 || tiers[i-1];
+        let canAfford = excessSP >= td.cost;
+        let canBuy = !isPurchased && prevUnlocked && canAfford;
+        let locked = !prevUnlocked;
+
+        let div = document.createElement('div');
+        div.className = `bg-gray-800 border-2 ${isPurchased ? 'border-yellow-500' : locked ? 'border-gray-700 opacity-60' : 'border-purple-700'} rounded-xl p-4 flex justify-between items-center shadow-md`;
+        div.innerHTML = `
+            <div class="flex items-center gap-3 flex-1">
+                <span class="text-3xl">${td.icon}</span>
+                <div>
+                    <div class="font-bold text-white text-sm">${isPurchased ? '✅ ' : ''}Tier ${i+1}: ${td.name}</div>
+                    <div class="text-xs text-gray-300 mt-0.5">${td.desc}</div>
+                    <div class="text-xs ${canAfford ? 'text-yellow-400' : 'text-red-400'} mt-0.5">Cost: ${td.cost} excess SP${isPurchased ? '' : ` (you have: ${excessSP})`}</div>
+                </div>
+            </div>
+            ${isPurchased
+                ? '<span class="text-green-400 font-bold text-xs ml-2">OWNED</span>'
+                : locked
+                    ? '<span class="text-gray-500 font-bold text-xs ml-2">🔒 LOCKED</span>'
+                    : `<button onclick="buyBlackMarketTier(${i})" class="bg-purple-700 hover:bg-purple-600 text-white font-bold px-4 py-2 rounded-lg text-sm transition active:scale-95 border border-purple-500 shadow ${canBuy ? '' : 'opacity-50 cursor-not-allowed'}" ${canBuy ? '' : 'disabled'}>Buy</button>`
+            }
+        `;
+        list.appendChild(div);
+    });
+
+    switchScreen('screen-black-market');
+}
+
+function buyBlackMarketTier(tierIndex) {
+    let p = globalProgression;
+    if (!p.blackMarketTiers) p.blackMarketTiers = [false,false,false,false,false];
+    if (p.blackMarketTiers[tierIndex]) return;
+    if (tierIndex > 0 && !p.blackMarketTiers[tierIndex-1]) return;
+
+    let totalNodes = player ? (player.skillMenuProgress || 0) : 0;
+    let spentSP = p.blackMarketSpentSP || 0;
+    let excessSP = Math.max(0, totalNodes - 25) - spentSP;
+    const costs = [75, 100, 100, 100, 100];
+    let cost = costs[tierIndex];
+    if (excessSP < cost) { playSound('lose'); return; }
+
+    if (!p.blackMarketSpentSP) p.blackMarketSpentSP = 0;
+    p.blackMarketSpentSP += cost;
+    p.blackMarketTiers[tierIndex] = true;
+
+    if (tierIndex === 0) {
+        let avatarEl = document.getElementById('hub-avatar');
+        if (avatarEl) avatarEl.classList.add('avatar-border-glow');
+    }
+    if (tierIndex === 4) {
+        if (player && player.skillCooldowns) {
+            Object.keys(player.skillCooldowns).forEach(k => {
+                player.skillCooldowns[k] = Math.max(0, (player.skillCooldowns[k] || 0) - 2);
+            });
+        }
+    }
+
+    playSound('win');
+    saveGame();
+    showBlackMarket();
+}

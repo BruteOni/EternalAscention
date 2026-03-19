@@ -359,6 +359,9 @@ let globalProgression = {
     discoveredPets: {}, claimedPetRewards: {}, ultimatePetRewardClaimed: false,
     petWinLoss: {},
     petBattleEnergy: 10, petBattleLastEnergyTime: Date.now(),
+    blackMarketTiers: [false, false, false, false, false],
+    blackMarketSpentSP: 0,
+    patchVersion: 1,
     saveVersion: 2
 };
 const TREE_NODES = [];
@@ -645,6 +648,9 @@ function makeInitialGlobalProgression() {
         petWinLoss: {},
         petBattleEnergy: 10, petBattleLastEnergyTime: Date.now(),
         petFavorites: [],
+        blackMarketTiers: [false, false, false, false, false],
+        blackMarketSpentSP: 0,
+        patchVersion: 1,
         saveVersion: 2
     };
 }
@@ -765,6 +771,25 @@ function loadGameAndContinue() {
             player.wayOfHeavensCooldown = 0;
             // Reset infinite atk (removed feature)
             player.skillMenuInfiniteAtk = 0;
+
+            // One-time patch version reset
+            if (!globalProgression.patchVersion || globalProgression.patchVersion < 1) {
+                let classBase = typeof getClassBaseAttributes === 'function' ? getClassBaseAttributes(player.classId || 'warrior') : {};
+                globalProgression.attributes = Object.assign({}, classBase);
+                player.skillMenuProgress = 0;
+                player.skillMenuBonusDmgPct = 0;
+                player.skillMenuBonusDefPct = 0;
+                player.skillMenuBonusHpPct = 0;
+                player.skillMenuInfiniteAtk = 0;
+                player.skillMenuNodeChoices = [];
+                player.skillMenuLastStatChoice = null;
+                player.skillMenuConsecutiveSameCount = 0;
+                player.unlockedSkills = [0, 1, 2];
+                player.equippedSkills = [0, 1, 2, null, null];
+                player.skillPoints = 0;
+                player.statPoints = 0;
+                globalProgression.patchVersion = 1;
+            }
 
             showHub();
         }
@@ -900,7 +925,7 @@ function getClassBaseAttributes(classId) {
 
 // Returns the per-class attribute caps
 function getClassAttrCap(classId, attrId) {
-    return 200; // Universal cap of 200 for all attributes, all classes
+    return 100; // Universal cap of 100 for all attributes, all classes
 }
 
 function switchScreen(screenId) {
@@ -976,12 +1001,13 @@ function showGenderSelect(classId) {
         if (video) {
             const src = document.getElementById('class-intro-video-src');
             if (src) src.src = videoFile;
-            video.muted = true;
+            video.muted = false;
             video.load();
             video.play().catch(err => {
                 console.warn('Autoplay blocked:', err);
                 onClassVideoEnd();
             });
+            video.addEventListener('pause', () => { if (!video.ended) video.play().catch(() => {}); }, { once: false });
             video.onended = onClassVideoEnd;
         }
         switchScreen('screen-class-intro-video');
@@ -1133,7 +1159,7 @@ function showHub() {
     try {
         // Sync hero bar notification badges
         if(document.getElementById('hub-attr-noti-hero')) document.getElementById('hub-attr-noti-hero').classList.toggle('hidden', player.statPoints <= 0);
-        if(document.getElementById('hub-skill-noti-hero')) document.getElementById('hub-skill-noti-hero').classList.toggle('hidden', player.skillPoints <= 0);
+        if(document.getElementById('hub-skill-noti-hero')) document.getElementById('hub-skill-noti-hero').classList.toggle('hidden', player.skillPoints <= 0 || (player.skillMenuProgress || 0) >= 25);
         
         let hasUnequippedBetter = EQUIP_SLOTS.some(slot => hasBetterGear(slot));
         if(document.getElementById('hub-char-noti-hero')) document.getElementById('hub-char-noti-hero').classList.toggle('hidden', !hasUnequippedBetter);
@@ -1676,7 +1702,7 @@ function checkLevelUp() {
         if (player.xp < xpNeeded) break;
         player.lvl++;
         player.xp -= xpNeeded;
-        player.statPoints += 2;
+        player.statPoints += (player.lvl > 50 ? 2 : 1);
         player.skillPoints++;
         levelsGained++;
     }

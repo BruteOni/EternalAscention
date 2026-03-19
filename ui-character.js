@@ -156,6 +156,11 @@ function showCharacter() {
             btn.innerHTML = '+';
         }
         btn.onclick = () => openSkillModal(i);
+        if (i === 0) {
+            btn.onclick = null;
+            btn.style.position = 'relative';
+            btn.innerHTML = btn.innerHTML + '<span style="position:absolute;top:2px;right:4px;font-size:10px;">🔒</span>';
+        }
         skillSlots.appendChild(btn);
     }
 

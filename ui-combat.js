@@ -5,6 +5,8 @@ if (typeof structuredClone === 'undefined') {
     };
 }
 
+let skipTurnScheduled = false;
+
 // --- MAIN MENU & SCREEN NAVIGATION ---
 // Note: confirmNewGame, closeConfirmNewGame, confirmNewGameYes, and switchScreen are defined in game.js.
 
@@ -110,12 +112,20 @@ function returnToTown() {
 }
 function fleeBattle() { returnToTown(); }
 function showFloatText(targetId, text, colorClass) { const target = document.getElementById(targetId); if (!target) return; const floater = document.createElement('div'); floater.className = `float-text ${colorClass}`; floater.innerText = text; target.appendChild(floater); setTimeout(() => { if(floater.parentNode) floater.remove(); }, 900); }
-function showDamageNumber(targetId, damage, isCrit) {
+function showDamageNumber(targetId, damage, isCritOrType) {
     const target = document.getElementById(targetId);
     if (!target) return;
     const floater = document.createElement('div');
-    floater.className = 'damage-number' + (isCrit ? ' crit' : '');
-    floater.innerText = isCrit ? `CRIT! -${damage}` : `-${damage}`;
+    let typeClass = '';
+    if (isCritOrType === 'crit' || isCritOrType === true) {
+        typeClass = ' crit';
+    } else if (isCritOrType === 'player-damage') {
+        typeClass = ' player-dmg';
+    } else if (isCritOrType === 'enemy-damage') {
+        typeClass = ' enemy-dmg';
+    }
+    floater.className = 'damage-number' + typeClass;
+    floater.innerText = (isCritOrType === 'crit' || isCritOrType === true) ? `CRIT! -${damage}` : `-${damage}`;
     target.appendChild(floater);
     setTimeout(() => { if (floater.parentNode) floater.remove(); }, 1000);
 }
@@ -861,6 +871,39 @@ function renderSkills() {
     grid.appendChild(makeSkillBtn(2, true, false));
     grid.appendChild(makeSkillBtn(3, true, false));
     grid.appendChild(makeSkillBtn(4, true, false));
+
+    // Auto-skip when all skills are on cooldown
+    if (combatActive && isPlayerTurn && !isAutoBattle && !(player.stunned > 0)) {
+        let slotCount = (globalProgression.blackMarketTiers && globalProgression.blackMarketTiers[1]) ? 6 : 5;
+        let allOnCooldown = player.equippedSkills.slice(0, slotCount).every(sIdx => {
+            if (sIdx === null || sIdx === undefined || sIdx === 'woh') return true;
+            return (player.skillCooldowns[sIdx] || 0) > 0;
+        });
+        if (allOnCooldown) {
+            const skipBtn = document.createElement('button');
+            skipBtn.className = 'skill-btn-skip-turn w-full py-2 px-2 rounded-lg border border-yellow-600 bg-yellow-900 text-yellow-300 font-bold text-sm active:scale-95';
+            skipBtn.style.gridColumn = '1 / -1';
+            skipBtn.innerText = '⏭ Skip Turn';
+            skipBtn.onclick = () => {
+                isPlayerTurn = false;
+                skipTurnScheduled = false;
+                renderSkillButtons();
+                setTimeout(() => executeEnemyTurns(0), 500);
+            };
+            grid.appendChild(skipBtn);
+            if (!skipTurnScheduled) {
+                skipTurnScheduled = true;
+                setTimeout(() => {
+                    if (skipTurnScheduled && combatActive && isPlayerTurn && !isAutoBattle) {
+                        isPlayerTurn = false;
+                        skipTurnScheduled = false;
+                        renderSkillButtons();
+                        setTimeout(() => executeEnemyTurns(0), 500);
+                    }
+                }, 500);
+            }
+        }
+    }
 }
 
 function addLog(msg, colorClass) {
@@ -883,6 +926,7 @@ function triggerAnim(elementId, animClass) {
 }
 
 function processAutoTurn() {
+    skipTurnScheduled = false;
     if(!isPlayerTurn || !combatActive) return;
     if(enemies.every(e => e.currentHp <= 0)) { if(combatActive) endBattle(true); return; }
     let hpPct = player.currentHp / player.maxHp; let inv = globalProgression.inventory;
@@ -1931,6 +1975,47 @@ function endBattle(playerWon) {
             globalProgression.inventory.magic_stone = (globalProgression.inventory.magic_stone || 0) + killCount;
             rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-orange-700 text-orange-400 font-bold shadow-md">⚔️ +${invasionGoldGain} Gold</div>`;
             rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-blue-600 text-blue-300 font-bold shadow-md">💎 +${killCount} Magic Stone${killCount > 1 ? 's' : ''}</div>`;
+
+            // Per-enemy item drops (~40% chance each)
+            const INV_CONSUMABLE_POOL = ['pot_i1','pot_i2','pot_i3','pot_r1','pot_r2','pot_r3','food_d1','food_d2','food_d3','food_df1','food_df2','food_df3'];
+            const INV_MATERIAL_POOL = ['herb_red','herb_blue','fish_1','fish_2','fish_3','fish_4','fish_5','fish_6','ench_common','ench_rare','soul_pebbles'];
+            const INV_USABLE_POOL = (typeof BURGLAR_ITEM_POOL !== 'undefined') ? BURGLAR_ITEM_POOL : [];
+            for (let ki = 0; ki < killCount; ki++) {
+                if (rollWithDropRate(0.4)) {
+                    // 10% of drops become gear
+                    if (Math.random() < 0.10) {
+                        let gear = rollEquipment('common');
+                        if (gear) {
+                            globalProgression.equipInventory.push(gear);
+                            let gSlot = gear.type.startsWith('ring') ? 'ring' : gear.type;
+                            globalProgression.newItems[gSlot] = true;
+                            rwdCont.innerHTML += `<div class="bg-gray-900 px-3 py-1 rounded border border-gray-500 text-gray-200 font-bold shadow-md text-xs">🎁 Gear: ${gear.icon || ''} ${gear.name}</div>`;
+                        }
+                    } else {
+                        // Pick from combined pool
+                        let roll = Math.random();
+                        let pickedId;
+                        if (roll < 0.4 && INV_CONSUMABLE_POOL.length) {
+                            pickedId = INV_CONSUMABLE_POOL[Math.floor(Math.random() * INV_CONSUMABLE_POOL.length)];
+                            globalProgression.inventory[pickedId] = (globalProgression.inventory[pickedId] || 0) + 1;
+                            let cDef = (typeof CONSUMABLES !== 'undefined' && CONSUMABLES[pickedId]) ? CONSUMABLES[pickedId] : null;
+                            let cName = cDef ? cDef.name : pickedId;
+                            rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-green-700 text-green-300 font-bold shadow-md text-xs">🎁 ${cName}</div>`;
+                        } else if (roll < 0.7 && INV_MATERIAL_POOL.length) {
+                            pickedId = INV_MATERIAL_POOL[Math.floor(Math.random() * INV_MATERIAL_POOL.length)];
+                            globalProgression.inventory[pickedId] = (globalProgression.inventory[pickedId] || 0) + 1;
+                            rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-yellow-700 text-yellow-300 font-bold shadow-md text-xs">🎁 ${pickedId}</div>`;
+                        } else if (INV_USABLE_POOL.length) {
+                            pickedId = INV_USABLE_POOL[Math.floor(Math.random() * INV_USABLE_POOL.length)];
+                            if (!globalProgression.usableItems) globalProgression.usableItems = {};
+                            globalProgression.usableItems[pickedId] = (globalProgression.usableItems[pickedId] || 0) + 1;
+                            let uDef = (typeof USABLE_ITEMS !== 'undefined' && USABLE_ITEMS[pickedId]) ? USABLE_ITEMS[pickedId] : null;
+                            let uName = uDef ? uDef.name : pickedId;
+                            rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-purple-700 text-purple-300 font-bold shadow-md text-xs">🎁 ${uName}</div>`;
+                        }
+                    }
+                }
+            }
 
             // Invasion is continuous — check if player has energy to continue
             let hasEnergy = (globalProgression.energy || 0) >= 1;

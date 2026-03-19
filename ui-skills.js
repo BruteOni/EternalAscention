@@ -36,6 +36,7 @@ const ENHANCEMENT_DEFS = {
 // --- SKILL MODAL UI (keep for equip system) ---
 let activeSkillSlot = null;
 function openSkillModal(slotIndex) {
+    if (slotIndex === 0) return;
     if (!player || !player.data) return;
     activeSkillSlot = slotIndex;
     const list = document.getElementById('skill-modal-list'); list.innerHTML = '';
