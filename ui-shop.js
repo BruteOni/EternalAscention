@@ -92,9 +92,10 @@ function openEnchantModal(slot) {
     statsHtml += `<div class="text-sm font-bold text-white mb-2">📊 Current Stats — ${eq.name}</div>`;
     statsHtml += '<div class="grid grid-cols-2 gap-1 text-xs">';
     if(eq.stats) {
+        const STAT_LABELS = { dmg: '⚔️ Damage', def: '🛡️ Defense', hp: '❤️ HP', critChance: '🎯 Crit%', critDmg: '💥 Crit Dmg', dodge: '💨 Dodge', armorPierce: '🗡️ Armor Pierce', dmgMitigation: '🛡️ Dmg Mitigation' };
         Object.entries(eq.stats).forEach(([key, val]) => {
             if(val && val !== 0) {
-                let label = key === 'dmg' ? '⚔️ Damage' : key === 'def' ? '🛡️ Defense' : key === 'hp' ? '❤️ HP' : key === 'critChance' ? '🎯 Crit%' : key === 'critDmg' ? '💥 Crit Dmg' : key === 'dodge' ? '💨 Dodge' : key === 'armorPierce' ? '🗡️ Armor Pierce' : key === 'dmgMitigation' ? '🛡️ Dmg Mitigation' : key;
+                let label = STAT_LABELS[key] || key;
                 statsHtml += `<div class="text-gray-300"><span class="text-gray-500">${label}:</span> <span class="text-yellow-300 font-bold">${typeof val === 'number' && val < 1 ? (val * 100).toFixed(1) + '%' : val}</span></div>`;
             }
         });

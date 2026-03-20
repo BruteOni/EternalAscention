@@ -420,15 +420,22 @@ function getMaxEnergy() {
     return Math.min(baseCap, 10 + Math.max(0, player.lvl - 1));
 }
 
+function getTitleStatBonus() {
+    let zs = globalProgression.zombieStats;
+    return ((zs && zs.titlesEarned) ? zs.titlesEarned.length : 0) * 0.01;
+}
+
+const ENERGY_REGEN_INTERVAL_MS = 300000; // 1 energy per 5 minutes
+
 function updateEnergy() {
     const maxEnergy = getMaxEnergy();
     const now = Date.now();
     const msPassed = now - globalProgression.lastEnergyTime;
-    const ticksPassed = Math.floor(msPassed / 300000);
+    const ticksPassed = Math.floor(msPassed / ENERGY_REGEN_INTERVAL_MS);
     if (globalProgression.energy < maxEnergy) {
         if (ticksPassed > 0) {
             globalProgression.energy = Math.min(maxEnergy, globalProgression.energy + ticksPassed);
-            globalProgression.lastEnergyTime = now - (msPassed % 300000);
+            globalProgression.lastEnergyTime = now - (msPassed % ENERGY_REGEN_INTERVAL_MS);
         }
     } else {
         globalProgression.lastEnergyTime = now;
@@ -921,8 +928,7 @@ function calculateMaxHp() {
     if (typeof getEquipBonusStat === 'function') {
         hpBoostMult *= (1 + getEquipBonusStat('bonusHpPct'));
     }
-    let titleCount = (globalProgression.zombieStats && globalProgression.zombieStats.titlesEarned) ? globalProgression.zombieStats.titlesEarned.length : 0;
-    return Math.floor(base * hpBoostMult * (1 + (player.skillMenuBonusHpPct || 0) / 100) * (1 + (globalProgression.pebbleBonusHp || 0) * 0.01) * (1 + titleCount * 0.01));
+    return Math.floor(base * hpBoostMult * (1 + (player.skillMenuBonusHpPct || 0) / 100) * (1 + (globalProgression.pebbleBonusHp || 0) * 0.01) * (1 + getTitleStatBonus()));
 }
 
 function getBaseDamage() {
@@ -951,15 +957,14 @@ function getBaseDamage() {
     // Apply pebble exchange damage bonus
     baseDmg = Math.floor(baseDmg * (1 + (globalProgression.pebbleBonusDmg || 0) * 0.01));
     // Apply zombie title bonus (+1% damage per title)
-    let titleCount = (globalProgression.zombieStats && globalProgression.zombieStats.titlesEarned) ? globalProgression.zombieStats.titlesEarned.length : 0;
-    if(titleCount > 0) baseDmg = Math.floor(baseDmg * (1 + titleCount * 0.01));
+    let titleBonus = getTitleStatBonus();
+    if(titleBonus > 0) baseDmg = Math.floor(baseDmg * (1 + titleBonus));
     return baseDmg;
 }
 
 function getPlayerDef() {
     let a = globalProgression.attributes;
-    let titleCount = (globalProgression.zombieStats && globalProgression.zombieStats.titlesEarned) ? globalProgression.zombieStats.titlesEarned.length : 0;
-    return Math.floor((50 + (a.defense || 0) + player.treeBonusDef) * (1 + (player.skillMenuBonusDefPct || 0) / 100) * (1 + (globalProgression.pebbleBonusDef || 0) * 0.01) * (1 + titleCount * 0.01));
+    return Math.floor((50 + (a.defense || 0) + player.treeBonusDef) * (1 + (player.skillMenuBonusDefPct || 0) / 100) * (1 + (globalProgression.pebbleBonusDef || 0) * 0.01) * (1 + getTitleStatBonus()));
 }
 
 // Returns the permanent base attributes for each class (cannot go below these)

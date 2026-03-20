@@ -109,6 +109,14 @@ function returnToTown() {
     if(btn) { btn.classList.remove('auto-on'); btn.disabled = false; btn.classList.remove('opacity-50'); }
     showHub();
 }
+
+function ensureZombieStats() {
+    if(!globalProgression.zombieStats) {
+        globalProgression.zombieStats = { totalKills: 0, maxWavesSurvived: 0, totalSessions: 0, pendingPotionRewards: 0, cooldownBuffEarned: false, titlesEarned: [] };
+    }
+    return globalProgression.zombieStats;
+}
+
 function fleeBattle() {
     if(currentMode === 'invasion') { combatActive = false; battleEnding = false; isAutoBattle = false; enemies = []; showInvasion(); }
     else { returnToTown(); }
@@ -1219,8 +1227,7 @@ function usePlayerSkill(slotIndex) {
                 }
                 
                 // Armor Pierce: reflexes 0.3% per point + bonusArmorPierce from accessories + pebble exchange bonus + title bonus
-                let titleCountAP = (globalProgression.zombieStats && globalProgression.zombieStats.titlesEarned) ? globalProgression.zombieStats.titlesEarned.length : 0;
-                let armorPierce = (a.reflexes || 0) * 0.003 + getEquipBonusStat('bonusArmorPierce') + (globalProgression.pebbleBonusArmorPierce || 0) * 0.01 + titleCountAP * 0.01;
+                let armorPierce = (a.reflexes || 0) * 0.003 + getEquipBonusStat('bonusArmorPierce') + (globalProgression.pebbleBonusArmorPierce || 0) * 0.01 + getTitleStatBonus();
                 let defDownDebuff = target.defReduction || 0;
                 let defMult = 1 + Math.min(0.95, armorPierce + defDownDebuff);
                 let hitDmg = Math.floor(scaledPower * defMult * (target.dmgTakenMult || 1));
@@ -1775,8 +1782,7 @@ function dealDamageToPlayer(baseDmg, attackerEnemy, isCritHit = false) {
     if (player.activeBuffs) player.activeBuffs.filter(b => b.type === 'def' || b.type === 'def_down').forEach(b => buffDefMult *= b.val);
     
     // Damage reduction: tenacity 0.3% per point + gear bonusDmgReduction + title bonus
-    let titleCountMit = (globalProgression.zombieStats && globalProgression.zombieStats.titlesEarned) ? globalProgression.zombieStats.titlesEarned.length : 0;
-    let tenacityReduction = 1 - ((a.tenacity || 0) * 0.003 + getEquipBonusStat('bonusDmgReduction') + titleCountMit * 0.01);
+    let tenacityReduction = 1 - ((a.tenacity || 0) * 0.003 + getEquipBonusStat('bonusDmgReduction') + getTitleStatBonus());
     let dmg = Math.floor(baseDmg * tenacityReduction);
     
     // Divine Shield enhancement
@@ -2021,8 +2027,8 @@ function endBattle(playerWon) {
             invasionTotalKills += killCount;
             zombieSessionKills += killCount;
             // Track total zombie kills in progression
-            if(!globalProgression.zombieStats) globalProgression.zombieStats = { totalKills: 0, maxWavesSurvived: 0, totalSessions: 0, pendingPotionRewards: 0, cooldownBuffEarned: false, titlesEarned: [] };
-            globalProgression.zombieStats.totalKills = (globalProgression.zombieStats.totalKills || 0) + killCount;
+            let zs = ensureZombieStats();
+            zs.totalKills = (zs.totalKills || 0) + killCount;
             // Per-kill rewards: scaled gold + 1 Magic Stone per kill
             let invasionGoldGain = Math.floor(killCount * (10 + player.lvl * 2));
             globalProgression.gold += invasionGoldGain;
@@ -2078,8 +2084,7 @@ function endBattle(playerWon) {
             // Track zombie wave
             zombieWaveCount++;
             zombieConsecutiveWaves++;
-            if(!globalProgression.zombieStats) globalProgression.zombieStats = { totalKills: 0, maxWavesSurvived: 0, totalSessions: 0, pendingPotionRewards: 0, cooldownBuffEarned: false, titlesEarned: [] };
-            let zs = globalProgression.zombieStats;
+            let zs = ensureZombieStats();
             zs.maxWavesSurvived = Math.max(zs.maxWavesSurvived || 0, zombieConsecutiveWaves);
             // Check every-10-wave potion reward
             if(zombieConsecutiveWaves > 0 && zombieConsecutiveWaves % 10 === 0) {

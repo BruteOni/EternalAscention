@@ -433,7 +433,20 @@ function claimZombieCooldownBuff() {
 }
 
 function startInvasion() {
-    if(player.lvl < 100) { showNoEnergyAnimation(); return; }
+    if(player.lvl < 100) {
+        let log = document.getElementById('invasion-log') || document.getElementById('well-log');
+        playSound('lose');
+        // Show a brief overlay message
+        let existing = document.getElementById('no-energy-overlay');
+        if(existing) existing.remove();
+        let overlay = document.createElement('div');
+        overlay.className = 'no-energy-overlay';
+        overlay.id = 'no-energy-overlay';
+        overlay.innerHTML = '<div class="no-energy-emoji">🔒</div><div class="no-energy-label">Level 100 Required!</div>';
+        document.body.appendChild(overlay);
+        setTimeout(() => { let el = document.getElementById('no-energy-overlay'); if(el) el.remove(); }, 2000);
+        return;
+    }
     if(!consumeEnergy(1)) {
         showNoEnergyAnimation();
         return;
