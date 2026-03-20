@@ -155,7 +155,7 @@ function createBaseEnemy() {
         shield: 0, healBlock: 0, defReduction: 0, defReductionTurns: 0,
         bleedStacks: 0, bleedTurns: 0, burnStacks: 0, burnTurns: 0,
         poisonStacks: 0, poisonTurns: 0, skipChance: 0, skipTurns: 0,
-        dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0,
+        dmgTakenMult: 1, dmgTakenTurns: 0, dodgeTurns: 0, defZeroTurns: 0,
         stunned: 0, def: 0, rarity: 'common', isBoss: false, isMythicBoss: false,
         skills: [], cooldowns: {}, dmgBoostMult: 1, dmgBoostTurns: 0,
         enemyReflect: 0, enemyReflectTurns: 0, darknessTurns: 0, darknessChance: 0,
@@ -197,7 +197,7 @@ function generateEnemies() {
                     restored.stunned = 0; restored.healBlock = 0;
                     restored.dmgTakenMult = 1; restored.dmgTakenTurns = 0;
                     restored.dodgeTurns = 0; restored.skipChance = 0; restored.skipTurns = 0;
-                    restored.shield = 0;
+                    restored.shield = 0; restored.defZeroTurns = 0;
                     return restored;
                 });
                 activeTargetIndex = 0;
@@ -420,7 +420,7 @@ function startBattle(isNewEncounter = false) {
     if (isNewEncounter) { 
         // Do NOT replenish HP — player enters with their current HP
         player.regenBuffs = []; player.activeBuffs = []; 
-        player.stunned = 0; player.bleedStacks = 0; player.bleedTurns = 0; player.dodgeTurns = 0; player.shurikenRainTurns = 0;
+        player.stunned = 0; player.bleedStacks = 0; player.bleedTurns = 0; player.dodgeTurns = 0; player.shurikenRainTurns = 0; player.ninjaDodgeTurns = 0;
         // Reset skill cooldowns at the start of each new battle (Way of Heavens is global and persists)
         if(!player.skillCooldowns) player.skillCooldowns = {};
         Object.keys(player.skillCooldowns).forEach(k => player.skillCooldowns[k] = 0);
@@ -429,6 +429,9 @@ function startBattle(isNewEncounter = false) {
     player.rageUsed = false; player.divineShieldUsed = false; player.reflectUsed = false; player.usedConsumableThisTurn = false;
     player.reAliveArmed = false; player.reAliveUsed = false;
     player.rageActive = player.rageActive || 0;
+    // Per-battle usable tracking
+    player.usedUsablesThisBattle = {};
+    player.autoUsableUsedThisBattle = false;
     // Reset usable item cooldowns at battle start
     if(!player.usableCooldowns) player.usableCooldowns = {};
     Object.keys(player.usableCooldowns).forEach(k => player.usableCooldowns[k] = 0);
@@ -469,6 +472,10 @@ function renderUsableSlots() {
     for(let i = 0; i < 7; i++) {
         const wrapper = document.createElement('div');
         wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;';
+        // First 3 slots: red border to indicate auto-battle usable slots
+        if(i < 3) {
+            wrapper.style.cssText += 'padding:2px;border:2px solid #ef4444;border-radius:8px;';
+        }
         const slot = document.createElement('div');
         slot.style.cssText = 'width:40px;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;position:relative;';
         const actionBtn = document.createElement('button');
@@ -493,9 +500,10 @@ function renderUsableSlots() {
                 const cdLeft = player.usableCooldowns[key] || 0;
                 const onCooldown = cdLeft > 0;
                 const hasItems = amt > 0;
-                const canUse = !onCooldown && hasItems && isPlayerTurn && combatActive;
+                const alreadyUsedThisBattle = !!(player.usedUsablesThisBattle || {})[key];
+                const canUse = !onCooldown && hasItems && isPlayerTurn && combatActive && !alreadyUsedThisBattle;
 
-                slot.style.cssText += onCooldown
+                slot.style.cssText += (onCooldown || alreadyUsedThisBattle)
                     ? 'background:#1f2937;border:1px solid #6b7280;cursor:not-allowed;'
                     : (hasItems ? 'background:#1c1917;border:1px solid #ef4444;cursor:pointer;' : 'background:#1f2937;border:1px solid #374151;cursor:not-allowed;opacity:0.4;');
                 slot.innerHTML = `<span>${icon}</span><span style="position:absolute;bottom:-2px;right:0;font-size:0.55rem;font-weight:bold;color:#fbbf24;">${amt}</span>`;
@@ -507,8 +515,15 @@ function renderUsableSlots() {
                     overlay.innerText = cdLeft;
                     slot.appendChild(overlay);
                 }
+                // Already-used-this-battle overlay
+                if(alreadyUsedThisBattle && !onCooldown) {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'usable-cooldown-overlay';
+                    overlay.innerText = '✓';
+                    slot.appendChild(overlay);
+                }
                 
-                slot.title = onCooldown ? `On cooldown: ${cdLeft} turns` : (hasItems ? name + ' — Click to use' : name + ' — Out of stock');
+                slot.title = alreadyUsedThisBattle ? name + ' — Already used this battle' : (onCooldown ? `On cooldown: ${cdLeft} turns` : (hasItems ? name + ' — Click to use' : name + ' — Out of stock'));
                 if(canUse) slot.onclick = (e) => { e.stopPropagation(); useUsableItem(key); };
                 actionBtn.style.cssText += 'background:#7f1d1d;color:#fca5a5;';
                 actionBtn.innerText = '✕';
@@ -582,6 +597,7 @@ function useUsableItem(key) {
     if(!player.usableCooldowns) player.usableCooldowns = {};
     const cdLeft = player.usableCooldowns[key] || 0;
     if(cdLeft > 0) { addLog(`${USABLE_ITEMS[key].name} is on cooldown! (${cdLeft} turns)`, 'text-gray-400'); return; }
+    if((player.usedUsablesThisBattle || {})[key]) { addLog(`${USABLE_ITEMS[key].name} already used this battle!`, 'text-gray-400'); return; }
     const amt = (globalProgression.usableItems || {})[key] || 0;
     if(amt <= 0) { addLog('No more ' + USABLE_ITEMS[key].name + '!', 'text-gray-400'); return; }
 
@@ -590,6 +606,9 @@ function useUsableItem(key) {
     const item = USABLE_ITEMS[key];
     // Apply cooldown
     if(item.cooldown > 0) player.usableCooldowns[key] = item.cooldown;
+    // Track as used this battle (once per battle)
+    if(!player.usedUsablesThisBattle) player.usedUsablesThisBattle = {};
+    player.usedUsablesThisBattle[key] = true;
 
     let target = enemies.find(e => e.currentHp > 0);
     if(!target && item.effectType !== 'ice_block' && item.effectType !== 'mirror' && item.effectType !== 'medicine') return;
@@ -780,8 +799,10 @@ function updateCombatUI() {
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'fire_shield')) activeBuffsHtml += `<span class="bg-orange-800 text-xs px-1 rounded border border-orange-400 shadow-md">🔥Shield</span>`;
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'ice_shield')) activeBuffsHtml += `<span class="bg-cyan-800 text-xs px-1 rounded border border-cyan-400 shadow-md">❄️Shield</span>`;
     if(player.dodgeTurns > 0) activeBuffsHtml += `<span class="bg-gray-400 text-black text-xs px-1 rounded shadow-md">💨Dodge</span>`;
+    if((player.ninjaDodgeTurns || 0) > 0) activeBuffsHtml += `<span class="bg-gray-400 text-black text-xs px-1 rounded shadow-md">💨NinjaDodge(${player.ninjaDodgeTurns}t)</span>`;
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'skill_reflect')) activeBuffsHtml += `<span class="bg-orange-800 text-xs px-1 rounded border border-orange-400 shadow-md">🔄Reflect</span>`;
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'double_damage_taken')) activeBuffsHtml += `<span class="bg-red-800 text-xs px-1 rounded border border-red-400 shadow-md">⚠️2xDmg</span>`;
+    if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'vamp_buff')) { const vbPct = Math.round(player.activeBuffs.filter(b => b.type === 'vamp_buff').reduce((s,b) => s+(b.val||0),0)*100); activeBuffsHtml += `<span class="bg-violet-900 text-xs px-1 rounded border border-violet-500 shadow-md">🧛${vbPct}%Vamp</span>`; }
     
     if (ui.buffsEl) ui.buffsEl.innerHTML = activeBuffsHtml;
 
@@ -1062,13 +1083,16 @@ function processAutoTurn() {
     if(bestTarget !== -1) activeTargetIndex = bestTarget;
     else activeTargetIndex = enemies.findIndex(e => e.currentHp > 0);
 
-    // Auto-use usable items (after consumables, before skills)
-    const autoUsables = globalProgression.settings.autoBattleUsables || [];
-    if(autoUsables.length > 0) {
-        for(const uKey of autoUsables) {
+    // Auto-use usable items: check first 3 equipped usable slots (once per battle total)
+    if(!player.autoUsableUsedThisBattle) {
+        for(let autoSlotIdx = 0; autoSlotIdx < 3; autoSlotIdx++) {
+            const uKey = player.equippedUsables && player.equippedUsables[autoSlotIdx];
+            if(!uKey || !USABLE_ITEMS[uKey]) continue;
             const uAmt = (globalProgression.usableItems || {})[uKey] || 0;
             const uCd = (player.usableCooldowns || {})[uKey] || 0;
-            if(uAmt > 0 && uCd <= 0) {
+            const alreadyUsed = (player.usedUsablesThisBattle || {})[uKey];
+            if(uAmt > 0 && uCd <= 0 && !alreadyUsed) {
+                player.autoUsableUsedThisBattle = true;
                 useUsableItem(uKey);
                 return;
             }
@@ -1321,7 +1345,7 @@ function usePlayerSkill(slotIndex) {
                 if (target.shield > 0) { hitDmg = Math.floor(hitDmg * (1 - target.shield)); target.shield = 0; }
 
                 // Apply enemy flat defense (subtract from damage)
-                const enemyDef = target.def || 0;
+                const enemyDef = (target.defZeroTurns && target.defZeroTurns > 0) ? 0 : (target.def || 0);
                 if(enemyDef > 0) hitDmg = Math.max(1, hitDmg - enemyDef);
                 
                 // Crit chance: force 0.5% per point + gear bonusCritRate
@@ -1339,8 +1363,9 @@ function usePlayerSkill(slotIndex) {
                 totalDmg += hitDmg;
                 _pendingDamageNumbers.push({ id: `enemy-card-${tIdx}`, dmg: hitDmg, crit: isCrit });
 
-                // Vampire: life steal from attribute (0.25% per point) + gear bonusVamp
-                const vampPct = ((a.vampire || 0) * 0.0025) + getEquipBonusStat('bonusVamp');
+                // Vampire: life steal from attribute (0.25% per point) + gear bonusVamp + active vamp buffs
+                const vampBuffPct = player.activeBuffs ? player.activeBuffs.filter(b => b.type === 'vamp_buff').reduce((sum, b) => sum + (b.val || 0), 0) : 0;
+                const vampPct = ((a.vampire || 0) * 0.0025) + getEquipBonusStat('bonusVamp') + vampBuffPct;
                 if(vampPct > 0 && hitDmg > 0) {
                     const { healingBuffMult } = getHealingMultipliers();
                     const vampHeal = Math.max(1, Math.floor(hitDmg * vampPct * healingBuffMult));
@@ -1444,6 +1469,18 @@ function usePlayerSkill(slotIndex) {
                 addLog(`Poke! Removed ${pokeDmg} HP from ${pokeTarget.name}, healed ${pokeHeal}!`, 'text-fuchsia-400 font-bold');
             }
         }
+        // Dismemberment: bonus HP% damage + reduce enemy DEF to 0
+        if(skill.special === 'dismemberment') {
+            const dismTarget = enemies[activeTargetIndex];
+            if(dismTarget && dismTarget.currentHp > 0) {
+                const hpDmg = Math.floor(dismTarget.currentHp * (skill.hpDamagePct || 0.10));
+                dismTarget.currentHp = Math.max(0, dismTarget.currentHp - hpDmg);
+                showFloatText(`enemy-card-${activeTargetIndex}`, `-${hpDmg} 💀`, 'text-yellow-500');
+                addLog(`💀 Dismemberment! ${hpDmg} bonus HP damage!`, 'text-yellow-400 font-bold');
+                dismTarget.defZeroTurns = skill.defZeroTurns || 3;
+                addLog(`${dismTarget.name}'s DEF reduced to 0 for ${dismTarget.defZeroTurns} turns!`, 'text-purple-400 font-bold');
+            }
+        }
 
     } else if (skill.type === 'heal') {
         const { healMult, healingBuffMult } = getHealingMultipliers();
@@ -1463,6 +1500,17 @@ function usePlayerSkill(slotIndex) {
                 showDamageNumber(`enemy-card-${activeTargetIndex}`, dmg, false);
                 addLog(`${skill.name} also dealt ${dmg} damage!`, 'text-yellow-400');
             }
+        }
+        // Bloodbath: inflict bleed on all enemies
+        if(skill.special === 'bloodbath') {
+            enemies.forEach((e, eIdx) => {
+                if(e.currentHp > 0) {
+                    e.bleedStacks = Math.min(5, (e.bleedStacks || 0) + 1);
+                    e.bleedTurns = Math.max(e.bleedTurns || 0, 4);
+                    showFloatText('enemy-card-' + eIdx, '🩸', 'text-red-500');
+                }
+            });
+            addLog('🩸 Bloodbath! All enemies are bleeding!', 'text-red-500 font-bold');
         }
     } else if (skill.type === 'debuff') {
         playSound('buff'); addLog(`Used ${skill.name}!`, "text-purple-400 font-bold");
@@ -1569,6 +1617,14 @@ function usePlayerSkill(slotIndex) {
             player.activeBuffs.push({ type: 'infection', turns: skill.self_effect.infectionTurns || 5 });
             addLog(`Infection active! +5% dmg per enemy effect stack (${skill.self_effect.infectionTurns||5}t)!`, 'text-green-400 font-bold');
         }
+        if(skill.self_effect.vampPct) {
+            player.activeBuffs.push({ type: 'vamp_buff', val: skill.self_effect.vampPct, turns: skill.self_effect.vampTurns || 3 });
+            addLog(`🧛 +${Math.floor(skill.self_effect.vampPct * 100)}% Vamp for ${skill.self_effect.vampTurns || 3}t!`, 'text-violet-400 font-bold');
+        }
+        if(skill.self_effect.ninjaDodgeTurns) {
+            player.ninjaDodgeTurns = (player.ninjaDodgeTurns || 0) + skill.self_effect.ninjaDodgeTurns;
+            addLog(`💨 Dodge active! All attacks dodged for ${skill.self_effect.ninjaDodgeTurns} ninja turn(s)!`, 'text-gray-300 font-bold');
+        }
         if(skill.self_effect.healFromDmgPct && totalDmg > 0) {
             const h = Math.floor(totalDmg * skill.self_effect.healFromDmgPct * healMult * healingBuffMult);
             player.currentHp = Math.min(player.maxHp, player.currentHp + h);
@@ -1654,6 +1710,8 @@ function executeEnemyTurns(enemyIdx, extraTurns = 0) {
     if(extraTurns === 0 && e.dmgTakenTurns > 0) { e.dmgTakenTurns--; if(e.dmgTakenTurns <= 0) e.dmgTakenMult = 1; }
     // Tick down def reduction turns
     if(extraTurns === 0 && (e.defReductionTurns || 0) > 0) { e.defReductionTurns--; if(e.defReductionTurns <= 0) e.defReduction = 0; }
+    // Tick down def-to-zero turns
+    if(extraTurns === 0 && (e.defZeroTurns || 0) > 0) e.defZeroTurns--;
 
     // Decrement CD
     if(e.cooldowns) {
@@ -1841,7 +1899,7 @@ function dealDamageToPlayer(baseDmg, attackerEnemy, isCritHit = false) {
     const dodgePctBuff = player.activeBuffs ? player.activeBuffs.find(b => b.type === 'dodge_pct') : null;
     if(dodgePctBuff) dodgeChance += dodgePctBuff.val;
 
-    if(player.dodgeTurns > 0 || Math.random() < dodgeChance) {
+    if(player.dodgeTurns > 0 || (player.ninjaDodgeTurns || 0) > 0 || Math.random() < dodgeChance) {
         addLog(`You dodged!`, "text-gray-400 font-bold");
         showFloatText('player-avatar-container', `DODGE`, 'text-gray-400');
         if(player.dodgeTurns > 0) player.dodgeTurns--;
@@ -2043,6 +2101,13 @@ function startPlayerTurn() {
             addLog(`🌟 Shuriken Rain hit ${target.name} for ${shurikenDmg}!`, 'text-yellow-400');
         }
         player.shurikenRainTurns--;
+    }
+    // Ninja Dodge: count down by ninja turns (not by enemy attacks)
+    if((player.ninjaDodgeTurns || 0) > 0) {
+        player.ninjaDodgeTurns--;
+        if(player.ninjaDodgeTurns > 0) {
+            addLog(`💨 Ninja Dodge: ${player.ninjaDodgeTurns} turn(s) remaining.`, 'text-gray-400');
+        }
     }
 
     updateCombatUI(); 

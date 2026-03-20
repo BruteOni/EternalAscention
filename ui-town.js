@@ -2,13 +2,30 @@ function showAlchemist() {
     const p = globalProgression; document.getElementById('alch-gold-display').innerText = p.gold; document.getElementById('alch-herb-red').innerText = p.inventory.herb_red || 0; document.getElementById('alch-herb-blue').innerText = p.inventory.herb_blue || 0;
     const list = document.getElementById('alch-craft-list'); list.innerHTML = '';
     RECIPES_ALCHEMIST.forEach(rec => {
-        const pot = CONSUMABLES[rec.id]; const btn = document.createElement('button'); btn.className = `bg-gray-800 p-2 rounded-lg flex justify-between items-center border border-gray-700 hover:border-green-500 transition active:scale-95`;
-        const canCraft = p.gold >= rec.gold && (p.inventory[rec.herb] || 0) >= rec.herbAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
-        btn.disabled = !canCraft; if(!canCraft) btn.classList.add('opacity-50');
+        const pot = CONSUMABLES[rec.id];
         const herbIcon = rec.herb === 'herb_red' ? '🌺' : '💠';
-        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(pot.icon)}</span> <div><b class="text-white">${pot.name}</b><br><span class="text-[10px] text-gray-400">${pot.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${herbIcon} ${rec.herbAmt}</span><span>💰 ${rec.gold}</span></div>`;
-        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.herb] -= rec.herbAmt; addToInventory(rec.id, 1); playSound('heal'); queueSave(); showAlchemist(); };
-        list.appendChild(btn);
+        const canCraft1 = p.gold >= rec.gold && (p.inventory[rec.herb] || 0) >= rec.herbAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
+        const canCraft5 = p.gold >= rec.gold * 5 && (p.inventory[rec.herb] || 0) >= rec.herbAmt * 5 && (p.inventory[rec.id] || 0) + 5 <= INVENTORY_STACK_CAP;
+        const isFull = (p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP;
+        const row = document.createElement('div');
+        row.className = `bg-gray-800 p-2 rounded-lg flex justify-between items-center border border-gray-700 hover:border-green-500 transition gap-2`;
+        row.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(pot.icon)}</span> <div><b class="text-white">${sanitizeHTML(pot.name)}</b><br><span class="text-[10px] text-gray-400">${sanitizeHTML(pot.desc)}</span>${isFull ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${herbIcon} ${rec.herbAmt}</span><span>💰 ${rec.gold}</span></div>`;
+        const btnWrap = document.createElement('div');
+        btnWrap.className = 'flex flex-col gap-1';
+        const btn1 = document.createElement('button');
+        btn1.className = `bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded text-xs font-bold transition active:scale-95${canCraft1 ? '' : ' opacity-50'}`;
+        btn1.textContent = '×1';
+        btn1.disabled = !canCraft1;
+        btn1.onclick = () => { p.gold -= rec.gold; p.inventory[rec.herb] -= rec.herbAmt; addToInventory(rec.id, 1); playSound('heal'); queueSave(); showAlchemist(); };
+        const btn5 = document.createElement('button');
+        btn5.className = `bg-green-800 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-bold transition active:scale-95${canCraft5 ? '' : ' opacity-50'}`;
+        btn5.textContent = '×5';
+        btn5.disabled = !canCraft5;
+        btn5.onclick = () => { p.gold -= rec.gold * 5; p.inventory[rec.herb] -= rec.herbAmt * 5; addToInventory(rec.id, 5); playSound('heal'); queueSave(); showAlchemist(); };
+        btnWrap.appendChild(btn1);
+        btnWrap.appendChild(btn5);
+        row.appendChild(btnWrap);
+        list.appendChild(row);
     });
     switchScreen('screen-alchemist');
 }
@@ -16,12 +33,29 @@ function showAlchemist() {
 function showChef() {
     const p = globalProgression; document.getElementById('chef-gold-display').innerText = p.gold; const list = document.getElementById('chef-craft-list'); list.innerHTML = '';
     RECIPES_CHEF.forEach(rec => {
-        const food = CONSUMABLES[rec.id]; const btn = document.createElement('button'); btn.className = `bg-gray-800 p-2 rounded-lg flex justify-between items-center border border-gray-700 hover:border-orange-500 transition active:scale-95`;
-        const canCraft = p.gold >= rec.gold && (p.inventory[rec.fish] || 0) >= rec.fishAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
-        btn.disabled = !canCraft; if(!canCraft) btn.classList.add('opacity-50');
-        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(food.icon)}</span> <div><b class="text-white">${food.name}</b><br><span class="text-[10px] text-gray-400">${food.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${sanitizeHTML(MAT_ICONS[rec.fish])} ${rec.fishAmt}</span><span>💰 ${rec.gold}</span></div>`;
-        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.fish] -= rec.fishAmt; addToInventory(rec.id, 1); playSound('win'); queueSave(); showChef(); };
-        list.appendChild(btn);
+        const food = CONSUMABLES[rec.id];
+        const canCraft1 = p.gold >= rec.gold && (p.inventory[rec.fish] || 0) >= rec.fishAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
+        const canCraft5 = p.gold >= rec.gold * 5 && (p.inventory[rec.fish] || 0) >= rec.fishAmt * 5 && (p.inventory[rec.id] || 0) + 5 <= INVENTORY_STACK_CAP;
+        const isFull = (p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP;
+        const row = document.createElement('div');
+        row.className = `bg-gray-800 p-2 rounded-lg flex justify-between items-center border border-gray-700 hover:border-orange-500 transition gap-2`;
+        row.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(food.icon)}</span> <div><b class="text-white">${sanitizeHTML(food.name)}</b><br><span class="text-[10px] text-gray-400">${sanitizeHTML(food.desc)}</span>${isFull ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${sanitizeHTML(MAT_ICONS[rec.fish])} ${rec.fishAmt}</span><span>💰 ${rec.gold}</span></div>`;
+        const btnWrap = document.createElement('div');
+        btnWrap.className = 'flex flex-col gap-1';
+        const btn1 = document.createElement('button');
+        btn1.className = `bg-orange-700 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs font-bold transition active:scale-95${canCraft1 ? '' : ' opacity-50'}`;
+        btn1.textContent = '×1';
+        btn1.disabled = !canCraft1;
+        btn1.onclick = () => { p.gold -= rec.gold; p.inventory[rec.fish] -= rec.fishAmt; addToInventory(rec.id, 1); playSound('win'); queueSave(); showChef(); };
+        const btn5 = document.createElement('button');
+        btn5.className = `bg-orange-800 hover:bg-orange-700 text-white px-2 py-1 rounded text-xs font-bold transition active:scale-95${canCraft5 ? '' : ' opacity-50'}`;
+        btn5.textContent = '×5';
+        btn5.disabled = !canCraft5;
+        btn5.onclick = () => { p.gold -= rec.gold * 5; p.inventory[rec.fish] -= rec.fishAmt * 5; addToInventory(rec.id, 5); playSound('win'); queueSave(); showChef(); };
+        btnWrap.appendChild(btn1);
+        btnWrap.appendChild(btn5);
+        row.appendChild(btnWrap);
+        list.appendChild(row);
     });
     switchScreen('screen-chef');
 }
