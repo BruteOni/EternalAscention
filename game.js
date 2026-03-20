@@ -1425,7 +1425,7 @@ function showHub() {
     try { clampAttributes(); } catch(e) { console.error('showHub: clampAttributes failed', e); }
     try { player.maxHp = calculateMaxHp(); if(player.currentHp > player.maxHp) player.currentHp = player.maxHp; } catch(e) { console.error('showHub: calculateMaxHp failed', e); }
     player.regenBuffs = []; player.activeBuffs = []; player.skillCooldowns = {};
-    player.stunned = 0; player.bleedStacks = 0; player.bleedTurns = 0; player.dodgeTurns = 0;
+    player.stunned = 0; player.bleedStacks = 0; player.bleedTurns = 0; player.dodgeTurns = 0; player.ninjaDodgeTurns = 0;
     player.reAliveArmed = false; player.reAliveUsed = false;
     const heroMenu = document.getElementById('hub-hero-menu');
     if(heroMenu) heroMenu.classList.add('hidden');
