@@ -41,9 +41,10 @@ function showAttributes() {
         // + button: disabled if can't afford or at cap
         const plusDisabled = (player.statPoints < cost) || (currentVal >= attrCap) ? 'disabled' : '';
 
-        // +5 button disabled logic
-        const cheap5 = Math.max(0, Math.min(5, ATTRIBUTE_EXPENSIVE_THRESHOLD - currentVal));
-        const plus5Cost = cheap5 + (5 - cheap5) * 2;
+        // +5 button disabled logic: compute cost for actual levels that can be added (capped at attrCap)
+        const cappedLevels = Math.min(5, attrCap - currentVal);
+        const cheap5 = Math.max(0, Math.min(cappedLevels, ATTRIBUTE_EXPENSIVE_THRESHOLD - currentVal));
+        const plus5Cost = cheap5 + (cappedLevels - cheap5) * 2;
         const plus5Disabled = (currentVal >= attrCap || player.statPoints < plus5Cost) ? 'disabled' : '';
 
         // - button: disabled if at class minimum (permanent base)
@@ -115,7 +116,7 @@ function allocateAttribute(id, count) {
     globalProgression.attributes[id] = currentVal + canAllocate;
 
     recalcAndClampHp();
-    saveGame();
+    queueSave();
     playSound('click');
     showAttributes();
 }
@@ -139,7 +140,7 @@ function deallocateAttribute(id, count) {
     player.statPoints += totalRefund;
 
     recalcAndClampHp();
-    saveGame();
+    queueSave();
     playSound('click');
     showAttributes();
 }
@@ -157,7 +158,7 @@ function respecAttributes() {
     });
     player.statPoints += totalRefund;
     recalcAndClampHp();
-    saveGame();
+    queueSave();
     playSound('click');
     showAttributes();
 }

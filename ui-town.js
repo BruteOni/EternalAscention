@@ -6,8 +6,8 @@ function showAlchemist() {
         const canCraft = p.gold >= rec.gold && (p.inventory[rec.herb] || 0) >= rec.herbAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
         btn.disabled = !canCraft; if(!canCraft) btn.classList.add('opacity-50');
         const herbIcon = rec.herb === 'herb_red' ? '🌺' : '💠';
-        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${pot.icon}</span> <div><b class="text-white">${pot.name}</b><br><span class="text-[10px] text-gray-400">${pot.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${herbIcon} ${rec.herbAmt}</span><span>💰 ${rec.gold}</span></div>`;
-        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.herb] -= rec.herbAmt; addToInventory(rec.id, 1); playSound('heal'); saveGame(); showAlchemist(); };
+        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(pot.icon)}</span> <div><b class="text-white">${pot.name}</b><br><span class="text-[10px] text-gray-400">${pot.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${herbIcon} ${rec.herbAmt}</span><span>💰 ${rec.gold}</span></div>`;
+        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.herb] -= rec.herbAmt; addToInventory(rec.id, 1); playSound('heal'); queueSave(); showAlchemist(); };
         list.appendChild(btn);
     });
     switchScreen('screen-alchemist');
@@ -19,8 +19,8 @@ function showChef() {
         const food = CONSUMABLES[rec.id]; const btn = document.createElement('button'); btn.className = `bg-gray-800 p-2 rounded-lg flex justify-between items-center border border-gray-700 hover:border-orange-500 transition active:scale-95`;
         const canCraft = p.gold >= rec.gold && (p.inventory[rec.fish] || 0) >= rec.fishAmt && (p.inventory[rec.id] || 0) < INVENTORY_STACK_CAP;
         btn.disabled = !canCraft; if(!canCraft) btn.classList.add('opacity-50');
-        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${food.icon}</span> <div><b class="text-white">${food.name}</b><br><span class="text-[10px] text-gray-400">${food.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${MAT_ICONS[rec.fish]} ${rec.fishAmt}</span><span>💰 ${rec.gold}</span></div>`;
-        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.fish] -= rec.fishAmt; addToInventory(rec.id, 1); playSound('win'); saveGame(); showChef(); };
+        btn.innerHTML = `<div class="text-left flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(food.icon)}</span> <div><b class="text-white">${food.name}</b><br><span class="text-[10px] text-gray-400">${food.desc}</span>${(p.inventory[rec.id] || 0) >= INVENTORY_STACK_CAP ? '<span class="text-red-400 text-[10px] font-bold"> (Full 99)</span>' : ''}</div></div><div class="text-yellow-400 font-bold bg-gray-900 px-2 py-1 rounded shadow-inner text-xs flex flex-col items-center gap-1"><span>${sanitizeHTML(MAT_ICONS[rec.fish])} ${rec.fishAmt}</span><span>💰 ${rec.gold}</span></div>`;
+        btn.onclick = () => { p.gold -= rec.gold; p.inventory[rec.fish] -= rec.fishAmt; addToInventory(rec.id, 1); playSound('win'); queueSave(); showChef(); };
         list.appendChild(btn);
     });
     switchScreen('screen-chef');
@@ -57,7 +57,7 @@ function showWorkshop() {
             card.style.boxShadow = '0 0 15px rgba(255,255,255,0.3)';
             card.innerHTML = `
                 <div class="flex items-center gap-3">
-                    <span class="text-3xl">${item.icon || '✨'}</span>
+                    <span class="text-3xl">${sanitizeHTML(item.icon || '✨')}</span>
                     <div>
                         <div class="font-black text-white text-sm drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]">${sanitizeHTML(item.name)}</div>
                         <div class="text-xs text-gray-300">Slot: ${sanitizeHTML(item.type)}</div>
@@ -155,7 +155,7 @@ function workshopEnhance(btn) {
         btn.innerText = '✨ Scaled!';
         btn.style.background = 'linear-gradient(135deg, #0891b2, #0e7490)';
         btn.disabled = true;
-        saveGame();
+        queueSave();
         setTimeout(() => showWorkshop(), 1000);
     }
 }
@@ -182,9 +182,9 @@ function showBurglar() {
         card.className = 'bg-gray-800 border border-gray-600 rounded-xl p-3 flex justify-between items-center transition hover:border-red-600';
         card.innerHTML = `
             <div class="flex items-center gap-3">
-                <span class="text-3xl">${item.icon}</span>
+                <span class="text-3xl">${sanitizeHTML(item.icon)}</span>
                 <div>
-                    <div class="font-bold text-white text-sm">${item.name}</div>
+                    <div class="font-bold text-white text-sm">${sanitizeHTML(item.name)}</div>
                     <div class="text-[10px] text-gray-400">${item.desc}</div>
                     <div class="text-[10px] mt-1">
                         ${item.cooldown > 0 ? `<span class="text-blue-300">⏱ ${item.cooldown}t cooldown</span>` : '<span class="text-green-300">⚡ No cooldown</span>'}
@@ -226,7 +226,7 @@ function burglarBuy(itemId) {
     globalProgression.burglarDailyPurchasesPerItem[itemId] = (globalProgression.burglarDailyPurchasesPerItem[itemId] || 0) + 1;
     const ps = ensureProgressStats(); ps.goldSpent += item.price;
     playSound('win');
-    saveGame();
+    queueSave();
     showBurglar();
 }
 
@@ -269,9 +269,9 @@ function showWeaponSmith() {
         div.innerHTML = `
             <div class="flex justify-between items-center mb-2">
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl">${item.icon}</span>
+                    <span class="text-2xl">${sanitizeHTML(item.icon)}</span>
                     <div>
-                        <div class="font-bold text-white text-sm">${item.name} ${label}</div>
+                        <div class="font-bold text-white text-sm">${sanitizeHTML(item.name)} ${label}</div>
                         <div class="text-xs text-yellow-300">Enhance Lv. ${enhLvl}/100${isMaxed ? ' (MAX)' : ''}</div>
                         <div class="text-xs text-green-400">${enhLabel}${maxBonus}</div>
                     </div>
@@ -336,7 +336,7 @@ function enhanceWeapon(itemId) {
         playSound('win');
     }
 
-    saveGame();
+    queueSave();
     showWeaponSmith();
 }
 
@@ -425,7 +425,7 @@ function claimZombieRewards() {
     const potions = zs.pendingPotionRewards * 5;
     globalProgression.inventory.pot_i1 = (globalProgression.inventory.pot_i1 || 0) + potions;
     zs.pendingPotionRewards = 0;
-    saveGame();
+    queueSave();
     showInvasion();
 }
 
@@ -433,7 +433,7 @@ function claimZombieCooldownBuff() {
     const zs = globalProgression.zombieStats;
     if(!zs || !zs.cooldownBuffEarned || zs.cooldownBuffClaimed) return;
     zs.cooldownBuffClaimed = true;
-    saveGame();
+    queueSave();
     showInvasion();
 }
 
@@ -466,7 +466,7 @@ function startInvasion() {
     invasionKillGoal = 0; // 0 = unlimited (continuous until player leaves or energy runs out)
     invasionMaxOnScreen = 5;
     currentMode = 'invasion';
-    saveGame();
+    queueSave();
     startBattle(true);
 }
 
@@ -485,7 +485,7 @@ function regenPetBattleEnergy() {
             // Set lastEnergyTime to the timestamp of the most recent complete regen tick,
             // preserving partial progress toward the next tick.
             globalProgression.petBattleLastEnergyTime = now - (msPassed % REGEN_MS);
-            saveGame();
+            queueSave();
         }
     } else {
         globalProgression.petBattleLastEnergyTime = Date.now();
@@ -507,7 +507,7 @@ function togglePetFavorite(petId) {
         }
         favs.push(petId);
     }
-    saveGame();
+    queueSave();
     showPetBattle();
 }
 
@@ -767,7 +767,7 @@ function petBattleRoundEnd(playerWon) {
         document.getElementById('pb-result-text').innerText = `🎉 You won! +15 Gold, +1 🔱 Titan Shard, +${xpGain} XP\nStreak: ${globalProgression.petBattleWinStreak}`;
         playSound('win');
         showPetBattleVictory();
-        saveGame();
+        queueSave();
         document.getElementById('pet-battle-gold-display').innerText = globalProgression.gold;
         document.getElementById('pet-battle-energy-display').innerText = globalProgression.petBattleEnergy;
         // Heal and start next round
@@ -848,7 +848,7 @@ function petBattleLose() {
     ps.battlesLost = (ps.battlesLost || 0) + 1;
     playSound('lose');
     showPetBattleDefeat();
-    saveGame();
+    queueSave();
     document.getElementById('pb-result-text').innerText = '💀 You lost! Your pet was defeated.';
     // Disable action buttons until a new pet battle is started
     ['attack', 'block', 'counter'].forEach(action => {
@@ -1014,7 +1014,7 @@ function useWellHeal() {
     player.currentHp = player.maxHp;
     log.innerText = 'You feel renewed. HP fully restored!';
     playSound('heal');
-    saveGame();
+    queueSave();
     showWell();
 }
 
@@ -1028,7 +1028,7 @@ function buyWellXpBuff() {
     globalProgression.wellLastXpDate = today;
     log.innerText = '2x XP blessing is active for 10 battles!';
     playSound('win');
-    saveGame();
+    queueSave();
     showWell();
 }
 
@@ -1042,7 +1042,7 @@ function buyWellDropBuff() {
     globalProgression.wellLastDropDate = today;
     log.innerText = '2x drop blessing is active for 10 battles!';
     playSound('win');
-    saveGame();
+    queueSave();
     showWell();
 }
 function useWellEnergy50() {
@@ -1051,7 +1051,7 @@ function useWellEnergy50() {
     if((p.wellLastEnergy50Date || '') === today) { log.innerText = 'Energy refill (50g) already used today.'; playSound('lose'); return; }
     if(p.gold < WELL_ENERGY50_COST) { log.innerText = 'Not enough Gold!'; playSound('lose'); return; }
     const maxEnergy = getMaxEnergy();
-    p.gold -= WELL_ENERGY50_COST; p.energy = maxEnergy; p.wellLastEnergy50Date = today; saveGame(); updateEnergy();
+    p.gold -= WELL_ENERGY50_COST; p.energy = maxEnergy; p.wellLastEnergy50Date = today; queueSave(); updateEnergy();
     log.innerText = `⚡ Energy refilled to ${maxEnergy}!`; playSound('chest');
     showWell();
 }
@@ -1061,7 +1061,7 @@ function useWellEnergy100() {
     if((p.wellLastEnergy100Date || '') === today) { log.innerText = 'Energy refill (100g) already used today.'; playSound('lose'); return; }
     if(p.gold < WELL_ENERGY100_COST) { log.innerText = 'Not enough Gold!'; playSound('lose'); return; }
     const maxEnergy = getMaxEnergy();
-    p.gold -= WELL_ENERGY100_COST; p.energy = maxEnergy; p.wellLastEnergy100Date = today; saveGame(); updateEnergy();
+    p.gold -= WELL_ENERGY100_COST; p.energy = maxEnergy; p.wellLastEnergy100Date = today; queueSave(); updateEnergy();
     log.innerText = `⚡ Energy refilled to ${maxEnergy}!`; playSound('chest');
     showWell();
 }
@@ -1073,7 +1073,7 @@ function useWellEnergy250() {
     const maxEnergy = getMaxEnergy();
     p.gold -= WELL_ENERGY250_COST; p.energy = maxEnergy;
     const ps = ensureProgressStats(); ps.goldSpent = (ps.goldSpent || 0) + WELL_ENERGY250_COST;
-    saveGame(); updateEnergy();
+    queueSave(); updateEnergy();
     if(log) log.innerText = `⚡ Energy refilled to ${maxEnergy}!`; playSound('heal');
     showWell();
 }
@@ -1088,7 +1088,7 @@ function unlockEnergyCapUpgrade() {
     p.energyCapUnlocked = true;
     log.innerText = '❗ Energy cap upgraded to 150! Level up to reach energies 51-150.';
     playSound('win');
-    saveGame();
+    queueSave();
     updateEnergy();
     showWell();
 }
@@ -1230,7 +1230,7 @@ function claimQuest(qNum) {
     if(prog >= goal && globalProgression.questsCompletedToday < 10) { 
         globalProgression.gold += rwd; 
         globalProgression.questsCompletedToday++;
-        generateQuest(qNum); playSound('win'); saveGame(); showQuests(); 
+        generateQuest(qNum); playSound('win'); queueSave(); showQuests(); 
     }
     updateQuestNotifyBadge();
 }

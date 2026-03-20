@@ -555,7 +555,7 @@ function openUsableSlotPicker(slotIdx) {
             const item = USABLE_ITEMS[key];
             const btn = document.createElement('button');
             btn.className = 'w-full bg-gray-900 border border-red-800 p-2 rounded flex justify-between items-center mb-1 active:scale-95 transition';
-            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-xl">${item.icon}</span><div><b class="text-red-300 text-sm">${sanitizeHTML(item.name)}</b><div class="text-[10px] text-gray-400">${sanitizeHTML(item.desc)}</div></div></div><span class="text-yellow-400 font-bold">x${amt}</span>`;
+            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-xl">${sanitizeHTML(item.icon)}</span><div><b class="text-red-300 text-sm">${sanitizeHTML(item.name)}</b><div class="text-[10px] text-gray-400">${sanitizeHTML(item.desc)}</div></div></div><span class="text-yellow-400 font-bold">x${amt}</span>`;
             btn.onclick = () => { if(!player.equippedUsables) player.equippedUsables = [null,null,null,null,null,null,null]; player.equippedUsables[_usablePickerSlot] = key; closeCombatBag(); renderUsableSlots(); };
             cont.appendChild(btn);
         }
@@ -568,7 +568,7 @@ function openUsableSlotPicker(slotIdx) {
             const c = CONSUMABLES[key];
             const btn = document.createElement('button');
             btn.className = 'w-full bg-gray-900 border border-gray-700 p-2 rounded flex justify-between items-center mb-1 active:scale-95 transition';
-            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-xl">${c.icon}</span><div><b class="text-white text-sm">${sanitizeHTML(c.name)}</b><div class="text-[10px] text-gray-400">${sanitizeHTML(c.desc)}</div></div></div><span class="text-yellow-400 font-bold">x${amt}</span>`;
+            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-xl">${sanitizeHTML(c.icon)}</span><div><b class="text-white text-sm">${sanitizeHTML(c.name)}</b><div class="text-[10px] text-gray-400">${sanitizeHTML(c.desc)}</div></div></div><span class="text-yellow-400 font-bold">x${amt}</span>`;
             btn.onclick = () => { if(!player.equippedUsables) player.equippedUsables = [null,null,null,null,null,null,null]; player.equippedUsables[_usablePickerSlot] = key; closeCombatBag(); renderUsableSlots(); };
             cont.appendChild(btn);
         }
@@ -2127,7 +2127,7 @@ function endBattle(playerWon) {
             desc.innerText = "More targets approaching...";
             btnNext.innerText = "Next Wave"; btnNext.classList.remove('hidden'); xpCont.classList.add('hidden');
             switchScreen('screen-end');
-            saveGame(); 
+            queueSave(); 
             if(isAutoBattle) { btnNext.innerText = "Auto-Continuing in 4s..."; setTimeout(() => { if(isAutoBattle) startBattle(false); }, 4000); }
             return; 
         }
@@ -2184,14 +2184,14 @@ function endBattle(playerWon) {
                     if ((globalProgression.inventory[picked] || 0) < INVENTORY_STACK_CAP) {
                         globalProgression.inventory[picked] = (globalProgression.inventory[picked] || 0) + 1;
                         const c = CONSUMABLES[picked];
-                        rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border border-green-600 text-green-300 font-bold text-xs shadow-md">+1 ${c.icon} ${c.name}</div>`;
+                        rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border border-green-600 text-green-300 font-bold text-xs shadow-md">+1 ${sanitizeHTML(c.icon)} ${sanitizeHTML(c.name)}</div>`;
                     }
                 } else if (poolRoll < 0.55) {
                     // Material drop (20%)
                     const matPool = ['herb_red','herb_blue','fish_1','fish_2','fish_3','fish_4','fish_5','fish_6','soul_pebbles','ench_common','ench_rare','ench_epic','ench_legendary','titan_shard','magic_stone'];
                     const picked = matPool[Math.floor(Math.random() * matPool.length)];
                     globalProgression.inventory[picked] = (globalProgression.inventory[picked] || 0) + 1;
-                    rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border border-blue-600 text-blue-300 font-bold text-xs shadow-md">+1 ${MAT_ICONS[picked] || '📦'} ${MAT_NAMES[picked] || picked}</div>`;
+                    rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border border-blue-600 text-blue-300 font-bold text-xs shadow-md">+1 ${sanitizeHTML(MAT_ICONS[picked] || '📦')} ${sanitizeHTML(MAT_NAMES[picked] || picked)}</div>`;
                 } else if (poolRoll < 0.70) {
                     // Usable item drop (15%)
                     const usablePool = Object.keys(USABLE_ITEMS);
@@ -2199,7 +2199,7 @@ function endBattle(playerWon) {
                     const uItem = USABLE_ITEMS[picked];
                     if (!globalProgression.usableItems) globalProgression.usableItems = {};
                     globalProgression.usableItems[picked] = (globalProgression.usableItems[picked] || 0) + 1;
-                    rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border border-yellow-600 text-yellow-300 font-bold text-xs shadow-md">+1 ${uItem.icon} ${uItem.name}</div>`;
+                    rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border border-yellow-600 text-yellow-300 font-bold text-xs shadow-md">+1 ${sanitizeHTML(uItem.icon)} ${sanitizeHTML(uItem.name)}</div>`;
                 } else {
                     // Gear drop (30%) — rare table matches game rarity weights
                     const rRoll = Math.random();
@@ -2212,7 +2212,7 @@ function endBattle(playerWon) {
                     const newEquip = rollEquipment(rarity);
                     globalProgression.equipInventory.push(newEquip);
                     globalProgression.newItems[newEquip.type.startsWith('ring') ? 'ring' : newEquip.type] = true;
-                    rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border-2 rarity-${newEquip.rarity} text-gray-300 font-bold text-xs shadow-md">⚔️ ${newEquip.icon} ${newEquip.name}</div>`;
+                    rwdCont.innerHTML += `<div class="bg-gray-800 px-2 py-1 rounded border-2 rarity-${newEquip.rarity} text-gray-300 font-bold text-xs shadow-md">⚔️ ${sanitizeHTML(newEquip.icon)} ${sanitizeHTML(newEquip.name)}</div>`;
                 }
             });
 
@@ -2271,7 +2271,7 @@ function endBattle(playerWon) {
                 const mythicEquip = rollEquipment('mythic');
                 globalProgression.equipInventory.push(mythicEquip);
                 globalProgression.newItems[mythicEquip.type.startsWith('ring') ? 'ring' : mythicEquip.type] = true;
-                rwdCont.innerHTML += `<div class="bg-gray-900 px-3 py-2 rounded border-2 rarity-mythic text-pink-300 font-bold shadow-md anim-mythic-gear">✨ MYTHIC DROP: ${mythicEquip.icon} ${mythicEquip.name}!</div>`;
+                rwdCont.innerHTML += `<div class="bg-gray-900 px-3 py-2 rounded border-2 rarity-mythic text-pink-300 font-bold shadow-md anim-mythic-gear">✨ MYTHIC DROP: ${sanitizeHTML(mythicEquip.icon)} ${sanitizeHTML(mythicEquip.name)}!</div>`;
                 return; // skip normal drops for mythic boss
             }
 
@@ -2282,12 +2282,12 @@ function endBattle(playerWon) {
                     globalProgression.equipInventory.push(gEquip);
                     globalProgression.newItems[gEquip.type.startsWith('ring') ? 'ring' : gEquip.type] = true;
                     const gLabel = e.guaranteedDrop === 'mythic' ? '✨ MYTHIC DROP' : e.guaranteedDrop === 'legendary' ? '⭐ LEGENDARY DROP' : '💎 ' + e.guaranteedDrop.toUpperCase() + ' DROP';
-                    rwdCont.innerHTML += `<div class="bg-gray-900 px-3 py-2 rounded border-2 rarity-${gEquip.rarity} text-pink-300 font-bold shadow-md">${gLabel}: ${gEquip.icon} ${gEquip.name}!</div>`;
+                    rwdCont.innerHTML += `<div class="bg-gray-900 px-3 py-2 rounded border-2 rarity-${gEquip.rarity} text-pink-300 font-bold shadow-md">${gLabel}: ${sanitizeHTML(gEquip.icon)} ${sanitizeHTML(gEquip.name)}!</div>`;
                     return;
                 }
                 const herb = Math.random() < 0.5 ? 'herb_red' : 'herb_blue';
                 globalProgression.inventory[herb]++;
-                rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-green-700 text-green-400 font-bold shadow-md">+1 ${MAT_ICONS[herb]}</div>`;
+                rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-green-700 text-green-400 font-bold shadow-md">+1 ${sanitizeHTML(MAT_ICONS[herb])}</div>`;
                 // 20% chance to drop a random potion
                 if (Math.random() < 0.20) {
                     const potionIds = ['pot_i1', 'pot_i2', 'pot_i3', 'pot_r1', 'pot_r2', 'pot_r3'];
@@ -2295,7 +2295,7 @@ function endBattle(playerWon) {
                     if ((globalProgression.inventory[droppedPot] || 0) < INVENTORY_STACK_CAP) {
                         globalProgression.inventory[droppedPot] = (globalProgression.inventory[droppedPot] || 0) + 1;
                         const potData = CONSUMABLES[droppedPot];
-                        rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-green-500 text-green-300 font-bold shadow-md">+1 ${potData.icon} ${potData.name}</div>`;
+                        rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-green-500 text-green-300 font-bold shadow-md">+1 ${sanitizeHTML(potData.icon)} ${sanitizeHTML(potData.name)}</div>`;
                     }
                 }
             }
@@ -2306,7 +2306,7 @@ function endBattle(playerWon) {
                     globalProgression.equipInventory.push(gEquip);
                     globalProgression.newItems[gEquip.type.startsWith('ring') ? 'ring' : gEquip.type] = true;
                     const gLabel = e.guaranteedDrop === 'mythic' ? '✨ MYTHIC DROP' : e.guaranteedDrop === 'legendary' ? '⭐ LEGENDARY DROP' : '💎 ' + e.guaranteedDrop.toUpperCase() + ' DROP';
-                    rwdCont.innerHTML += `<div class="bg-gray-900 px-3 py-2 rounded border-2 rarity-${gEquip.rarity} text-pink-300 font-bold shadow-md">${gLabel}: ${gEquip.icon} ${gEquip.name}!</div>`;
+                    rwdCont.innerHTML += `<div class="bg-gray-900 px-3 py-2 rounded border-2 rarity-${gEquip.rarity} text-pink-300 font-bold shadow-md">${gLabel}: ${sanitizeHTML(gEquip.icon)} ${sanitizeHTML(gEquip.name)}!</div>`;
                     return;
                 }
                 const fishTypes = [1,2,3,4,5,6];
@@ -2320,7 +2320,7 @@ function endBattle(playerWon) {
                     if ((globalProgression.inventory[droppedFood] || 0) < INVENTORY_STACK_CAP) {
                         globalProgression.inventory[droppedFood] = (globalProgression.inventory[droppedFood] || 0) + 1;
                         const foodData = CONSUMABLES[droppedFood];
-                        rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-blue-500 text-blue-300 font-bold shadow-md">+1 ${foodData.icon} ${foodData.name}</div>`;
+                        rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-blue-500 text-blue-300 font-bold shadow-md">+1 ${sanitizeHTML(foodData.icon)} ${sanitizeHTML(foodData.name)}</div>`;
                     }
                 }
             }
@@ -2354,7 +2354,7 @@ function endBattle(playerWon) {
                     const newEquip = rollEquipment(forceRarity);
                     globalProgression.equipInventory.push(newEquip);
                     globalProgression.newItems[newEquip.type.startsWith('ring') ? 'ring' : newEquip.type] = true; 
-                    rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border-2 rarity-${newEquip.rarity} text-gray-300 font-bold shadow-md">+1 Gear (${newEquip.icon})</div>`;
+                    rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border-2 rarity-${newEquip.rarity} text-gray-300 font-bold shadow-md">+1 Gear (${sanitizeHTML(newEquip.icon)})</div>`;
                 }
             }
             else if (currentMode === 'workshop') {
@@ -2491,7 +2491,7 @@ function endBattle(playerWon) {
             } else { endXpBar.style.width = `${(player.xp / xpNeeded) * 100}%`; }
         }, 100);
 
-        saveGame(); 
+        queueSave(); 
         if(isAutoBattle && !btnNext.classList.contains('hidden')) {
             btnNext.innerText = "Auto-Continuing in 4s...";
             setTimeout(() => { if(isAutoBattle) handleEndNext(); }, 4000);
@@ -2512,7 +2512,7 @@ function endBattle(playerWon) {
             savedEnemies[persistKey] = enemies.map(e => structuredClone(e));
         }
         enemies = [];
-        saveGame();
+        queueSave();
         title.innerText = "💀 DEFEAT";
         title.className = "text-5xl font-bold mb-2 text-red-500 drop-shadow-lg";
         desc.innerText = "You were defeated in battle.";

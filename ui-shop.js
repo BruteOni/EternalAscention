@@ -13,7 +13,7 @@ function showEnchanter() {
             const enchStatus = eq.enchanted ? `<span class="text-xs text-yellow-300 bg-gray-900 px-2 py-1 rounded">(${sanitizeHTML(eq.enchanted)})</span>` : 
                 `<button onclick="openEnchantModal('${slot}')" class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded text-xs font-bold transition active:scale-95 shadow-md">Enchant</button>`;
             
-            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-3xl">${eq.icon}</span><div><div class="font-bold text-white">${sanitizeHTML(eq.name)}</div>${eq.type === 'weapon' && eq.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(eq.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}</div></div> ${enchStatus}`;
+            btn.innerHTML = `<div class="flex items-center gap-2"><span class="text-3xl">${sanitizeHTML(eq.icon)}</span><div><div class="font-bold text-white">${sanitizeHTML(eq.name)}</div>${eq.type === 'weapon' && eq.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(eq.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}</div></div> ${enchStatus}`;
             document.getElementById('ench-list').appendChild(btn);
         }
     });
@@ -36,13 +36,13 @@ function showEnchanter() {
             div.className = 'bg-gray-800 border border-purple-700 rounded-lg p-3 flex justify-between items-center';
             div.innerHTML = `
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl">${MAT_ICONS[m.from]}</span>
+                    <span class="text-2xl">${sanitizeHTML(MAT_ICONS[m.from])}</span>
                     <div>
                         <div class="text-sm font-bold text-white">20 ${m.fromName} → 1 ${m.toName}</div>
                         <div class="text-xs text-gray-400">Owned: ${amt} / 20</div>
                     </div>
                     <span class="text-lg px-2">➡️</span>
-                    <span class="text-2xl">${MAT_ICONS[m.to]}</span>
+                    <span class="text-2xl">${sanitizeHTML(MAT_ICONS[m.to])}</span>
                 </div>
                 <button onclick="mergeSoulCores('${m.from}','${m.to}')" class="bg-purple-700 hover:bg-purple-600 text-white font-bold px-3 py-2 rounded text-xs transition active:scale-95 shadow-md ${canMerge ? '' : 'opacity-50 cursor-not-allowed'}" ${canMerge ? '' : 'disabled'}>MERGE</button>
             `;
@@ -74,7 +74,7 @@ function mergeSoulCores(fromId, toId) {
     globalProgression.inventory[fromId] -= 20;
     globalProgression.inventory[toId] = (globalProgression.inventory[toId] || 0) + 1;
     playSound('win');
-    saveGame();
+    queueSave();
     showEnchanter();
 }
 
@@ -112,10 +112,12 @@ function openEnchantModal(slot) {
         }
         if(eq.stats) {
             const STAT_LABELS = { dmg: '⚔️ Damage', def: '🛡️ Defense', hp: '❤️ HP', critChance: '🎯 Crit%', critDmg: '💥 Crit Dmg', dodge: '💨 Dodge', armorPierce: '🗡️ Armor Pierce', dmgMitigation: '🛡️ Dmg Mitigation' };
+            // Explicit set of stat keys whose values are stored as decimals (e.g. 0.05 = 5%)
+            const PERCENT_STAT_KEYS = new Set(['critChance', 'critDmg', 'dodge', 'armorPierce', 'dmgMitigation']);
             Object.entries(eq.stats).forEach(([key, val]) => {
                 if(val && val !== 0) {
                     const label = STAT_LABELS[key] || key;
-                    const isPercent = typeof val === 'number' && val < 1;
+                    const isPercent = PERCENT_STAT_KEYS.has(key);
                     const displayVal = isPercent ? (val * 100).toFixed(1) + '%' : val;
                     if(previewMult) {
                         const newVal = key === 'hp' ? Math.floor(val * previewMult) + 1 : key === 'dmg' || key === 'def' ? Math.floor(val * previewMult) + 1 : isPercent ? val * previewMult : val;
@@ -162,7 +164,7 @@ function openEnchantModal(slot) {
             const isActive = activeCoreId === c.id;
             html += `<div data-core="${c.id}" class="bg-gray-900 border-2 border-${c.color}-${isActive ? '400' : '500'} p-3 rounded-lg flex justify-between items-center transition ${canEnch ? 'hover:bg-gray-700 cursor-pointer' : 'opacity-50 cursor-not-allowed'} ${isActive ? 'ring-2 ring-' + c.color + '-300 bg-gray-800' : ''}">
                 <div class="text-left flex items-center gap-3">
-                    <span class="text-2xl">${MAT_ICONS[c.id]}</span>
+                    <span class="text-2xl">${sanitizeHTML(MAT_ICONS[c.id])}</span>
                     <div><div class="font-bold text-${c.color}-400">${c.name} <span class="text-white text-xs ml-1">x${amt}</span></div><div class="text-[10px] text-gray-400">+${c.boost}% Stats</div></div>
                 </div>
                 <button data-use="${c.id}" class="text-xs font-bold text-white bg-${c.color}-700 px-3 py-1 rounded shadow ${canEnch ? 'hover:bg-' + c.color + '-600 active:scale-95' : 'opacity-50 cursor-not-allowed'}" ${canEnch ? '' : 'disabled'}>USE</button>
@@ -221,7 +223,7 @@ function applyEnchant(coreId, mult, coreName) {
             if(eq.stats.dmg) eq.stats.dmg = Math.floor(eq.stats.dmg * mult) + 1;
             if(eq.stats.def) eq.stats.def = Math.floor(eq.stats.def * mult) + 1;
         }
-        playSound('win'); player.maxHp = calculateMaxHp(); saveGame(); closeEnchantModal();
+        playSound('win'); player.maxHp = calculateMaxHp(); queueSave(); closeEnchantModal();
     }
 }
 
@@ -241,10 +243,10 @@ function showShop() {
         const div = document.createElement('div');
         if(g.bought) {
             div.className = `bg-gray-900 border-2 border-gray-700 p-3 rounded-lg flex justify-between items-center opacity-50`;
-            div.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${g.item.icon}</span><span class="text-gray-500 line-through">${sanitizeHTML(g.item.name)}</span></div> <span class="text-xs font-bold text-gray-500">SOLD OUT</span>`;
+            div.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(g.item.icon)}</span><span class="text-gray-500 line-through">${sanitizeHTML(g.item.name)}</span></div> <span class="text-xs font-bold text-gray-500">SOLD OUT</span>`;
         } else {
             div.className = `bg-gray-800 border-2 rarity-${g.item.rarity} p-3 rounded-lg flex justify-between items-center shadow-md`;
-            div.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${g.item.icon}</span><div><div class="font-bold text-white">${sanitizeHTML(g.item.name)} <span class="text-[10px] text-gray-500 uppercase">${sanitizeHTML(g.item.rarity)}</span></div>${g.item.type === 'weapon' && g.item.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(g.item.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}</div></div><button onclick="buyShopGear(${idx})" class="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition active:scale-95 shadow-md flex items-center gap-1"><span>Buy</span><span class="text-yellow-400">💰${g.cost}</span></button>`;
+            div.innerHTML = `<div class="flex items-center gap-2"><span class="text-2xl">${sanitizeHTML(g.item.icon)}</span><div><div class="font-bold text-white">${sanitizeHTML(g.item.name)} <span class="text-[10px] text-gray-500 uppercase">${sanitizeHTML(g.item.rarity)}</span></div>${g.item.type === 'weapon' && g.item.weaponBaseDmgPct ? `<div class="text-xs text-green-400">Weapon Dmg: +${(g.item.weaponBaseDmgPct*100).toFixed(1)}%</div>` : ''}</div></div><button onclick="buyShopGear(${idx})" class="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition active:scale-95 shadow-md flex items-center gap-1"><span>Buy</span><span class="text-yellow-400">💰${g.cost}</span></button>`;
         }
         gearList.appendChild(div);
     });
@@ -274,7 +276,7 @@ function showShop() {
         const g = gearGroups[key];
         const price = getGearSellPrice(g.rarity);
         const div = document.createElement('div'); div.className = "flex justify-between items-center mb-2 border-b border-gray-700 pb-2 last:border-0";
-        div.innerHTML = `<div><span class="text-xl mr-1">${g.icon}</span> <span class="font-bold text-white">${sanitizeHTML(g.name)}</span> <span class="text-yellow-400 font-bold ml-2">x${g.count}</span><br><span class="text-[10px] text-gray-400 uppercase">Sells for ${price}G each</span></div><div class="flex gap-2"><button onclick="sellGear('${key}', 1)" class="bg-gray-700 hover:bg-gray-600 border border-gray-500 px-3 py-1 rounded text-xs font-bold transition active:scale-95">Sell 1</button><button onclick="sellGear('${key}', 'all')" class="bg-yellow-700 hover:bg-yellow-600 border border-yellow-500 px-3 py-1 rounded text-xs font-bold transition active:scale-95">Sell All</button></div>`;
+        div.innerHTML = `<div><span class="text-xl mr-1">${sanitizeHTML(g.icon)}</span> <span class="font-bold text-white">${sanitizeHTML(g.name)}</span> <span class="text-yellow-400 font-bold ml-2">x${g.count}</span><br><span class="text-[10px] text-gray-400 uppercase">Sells for ${price}G each</span></div><div class="flex gap-2"><button onclick="sellGear('${key}', 1)" class="bg-gray-700 hover:bg-gray-600 border border-gray-500 px-3 py-1 rounded text-xs font-bold transition active:scale-95">Sell 1</button><button onclick="sellGear('${key}', 'all')" class="bg-yellow-700 hover:bg-yellow-600 border border-yellow-500 px-3 py-1 rounded text-xs font-bold transition active:scale-95">Sell All</button></div>`;
         sellList.appendChild(div);
     });
 
@@ -296,7 +298,7 @@ function generateShopGear() {
         const cost = GEAR_BUY_PRICES[rarity] || GEAR_BUY_PRICES.common;
         globalProgression.shopGear.push({ item: item, cost: cost, bought: false });
     }
-    saveGame();
+    queueSave();
 }
 
 function refreshShopGear() {
@@ -319,7 +321,7 @@ function buyShopGear(idx) {
         const ps = ensureProgressStats(); ps.goldSpent += sg.cost;
         globalProgression.equipInventory.push(sg.item);
         globalProgression.newItems[sg.item.type.startsWith('ring') ? 'ring' : sg.item.type] = true; 
-        playSound('win'); saveGame(); showShop();
+        playSound('win'); queueSave(); showShop();
     } else if(globalProgression.gold < sg.cost) {
         playSound('lose');
     }
@@ -328,7 +330,7 @@ function buyShopGear(idx) {
 function sellItem(type, amount) {
     if(type.startsWith('pot_') || type.startsWith('food_')) return;
     const invAmount = globalProgression.inventory[type] || 0; const sellCount = amount === 'all' ? invAmount : amount;
-    if (sellCount > 0 && invAmount >= sellCount) { globalProgression.inventory[type] -= sellCount; globalProgression.gold += (sellCount * MAT_PRICES[type]); playSound('click'); saveGame(); showShop(); }
+    if (sellCount > 0 && invAmount >= sellCount) { globalProgression.inventory[type] -= sellCount; globalProgression.gold += (sellCount * MAT_PRICES[type]); playSound('click'); queueSave(); showShop(); }
 }
 
 function sellGear(groupKey, amount) {
@@ -348,7 +350,7 @@ function sellGear(groupKey, amount) {
         const idsToRemove = matchingIds.slice(0, sellCount);
         p.equipInventory = p.equipInventory.filter(eq => !idsToRemove.includes(eq.id));
         p.gold += (sellCount * pricePer);
-        playSound('click'); saveGame(); showShop();
+        playSound('click'); queueSave(); showShop();
     }
 }
 
@@ -362,12 +364,12 @@ function sellAllGear() {
     if(totalGold > 0) {
         p.equipInventory = [];
         p.gold += totalGold;
-        playSound('click'); saveGame(); showShop();
+        playSound('click'); queueSave(); showShop();
     }
 }
 
 function buyTicket(source = 'shop') {
-    if(globalProgression.gold >= 100) { globalProgression.gold -= 100; const ps = ensureProgressStats(); ps.goldSpent += 100; globalProgression.tickets = (globalProgression.tickets||0) + 1; playSound('win'); saveGame(); if(source === 'dungeon') showDungeons(); else if(source === 'invasion') showInvasion(); else showShop(); }
+    if(globalProgression.gold >= 100) { globalProgression.gold -= 100; const ps = ensureProgressStats(); ps.goldSpent += 100; globalProgression.tickets = (globalProgression.tickets||0) + 1; playSound('win'); queueSave(); if(source === 'dungeon') showDungeons(); else if(source === 'invasion') showInvasion(); else showShop(); }
     else { playSound('lose'); }
 }
 
@@ -442,7 +444,7 @@ function showBlackMarket() {
 
         div.innerHTML = `
             <div class="flex items-center gap-3">
-                <span class="text-3xl">${t.icon}</span>
+                <span class="text-3xl">${sanitizeHTML(t.icon)}</span>
                 <div class="flex-1">
                     <div class="font-black text-white text-base">Tier ${t.tier}: ${t.title}</div>
                     <div class="text-xs text-gray-300 mt-0.5">${t.desc}</div>
@@ -513,7 +515,7 @@ function exchangeSoulPebbles() {
         showFloatText('bm-pebble-stats', labelMap[chosen], colorMap[chosen]);
     }
     playSound('win');
-    saveGame();
+    queueSave();
     showBlackMarket();
 }
 
@@ -522,7 +524,7 @@ function exchangeLegendaryCoresForPebble(refreshFn) {
     globalProgression.inventory.ench_legendary -= 200;
     globalProgression.inventory.soul_pebbles = (globalProgression.inventory.soul_pebbles || 0) + 1;
     playSound('win');
-    saveGame();
+    queueSave();
     if (refreshFn) refreshFn();
 }
 
@@ -542,7 +544,7 @@ function buyBlackMarketTier(tier) {
     }
 
     playSound('win');
-    saveGame();
+    queueSave();
     showBlackMarket();
 }
 
