@@ -239,20 +239,40 @@ function generateEnemies() {
         // Zombie Apocalypse: spawn from ENEMIES_ZOMBIE pool (~5% easier than old invasion)
         let invasionLevel = Math.max(100, Math.min(player.lvl, 500));
         let zombiePool = (typeof ENEMIES_ZOMBIE !== 'undefined' && ENEMIES_ZOMBIE.length > 0) ? ENEMIES_ZOMBIE : null;
+        let waveScale = 1 + (zombieConsecutiveWaves * 0.10);
+
+        // Every 10th wave: spawn a zombie boss
+        if(zombieConsecutiveWaves > 0 && zombieConsecutiveWaves % 10 === 0 && typeof ZOMBIE_BOSSES !== 'undefined' && ZOMBIE_BOSSES.length > 0) {
+            let bossTemplate = ZOMBIE_BOSSES[Math.floor(Math.random() * ZOMBIE_BOSSES.length)];
+            let e = Object.assign(createBaseEnemy(), { rarity: 'boss', isBoss: true });
+            e.lvl = invasionLevel;
+            e.name = bossTemplate.name; e.avatar = bossTemplate.avatar;
+            e.maxHp = Math.max(1, Math.floor(invasionLevel * 10 * bossTemplate.hpMult * 0.95 * waveScale));
+            e.baseDmg = Math.max(1, Math.floor(invasionLevel * 2 * bossTemplate.dmgMult * 0.95 * waveScale));
+            e.templateMults = { hpMult: bossTemplate.hpMult, dmgMult: bossTemplate.dmgMult };
+            assignEnemySkills(e);
+            e.currentHp = e.maxHp;
+            enemies.push(e);
+            invasionSpawned++;
+            activeTargetIndex = 0;
+            playBossMusic();
+            return;
+        }
+
         for(let i = 0; i < invasionMaxOnScreen; i++) {
             let e = Object.assign(createBaseEnemy(), { rarity: 'common', isBoss: false });
             if(zombiePool) {
                 let t = zombiePool[Math.floor(Math.random() * zombiePool.length)];
                 e.lvl = invasionLevel;
                 e.name = t.name; e.avatar = t.avatar;
-                e.maxHp = Math.max(1, Math.floor(invasionLevel * 10 * t.hpMult * 0.95));
-                e.baseDmg = Math.max(1, Math.floor(invasionLevel * 2 * t.dmgMult * 0.95));
+                e.maxHp = Math.max(1, Math.floor(invasionLevel * 10 * t.hpMult * 0.95 * waveScale));
+                e.baseDmg = Math.max(1, Math.floor(invasionLevel * 2 * t.dmgMult * 0.95 * waveScale));
                 e.templateMults = { hpMult: t.hpMult, dmgMult: t.dmgMult };
             } else {
                 e.lvl = invasionLevel;
                 e.name = 'Zombie'; e.avatar = '🧟';
-                e.maxHp = Math.max(1, Math.floor(invasionLevel * 10 * 0.95));
-                e.baseDmg = Math.max(1, Math.floor(invasionLevel * 2 * 0.95));
+                e.maxHp = Math.max(1, Math.floor(invasionLevel * 10 * 0.95 * waveScale));
+                e.baseDmg = Math.max(1, Math.floor(invasionLevel * 2 * 0.95 * waveScale));
             }
             assignEnemySkills(e);
             e.currentHp = e.maxHp;
@@ -333,7 +353,7 @@ function generateEnemies() {
             e.rarity = 'boss'; e.isBoss = true;
             e.templateMults = { hpMult: bTemplate.hpMult, dmgMult: bTemplate.dmgMult };
         } else {
-            let lvlBase = currentMode === 'dungeon' ? (activeDungeonTier - 1) * 5 + activeDungeonRoom : player.lvl; 
+            let lvlBase = currentMode === 'dungeon' ? (activeDungeonTier - 1) * 5 + activeDungeonRoom : Math.min(player.lvl, 100); 
             e.lvl = Math.max(1, lvlBase + Math.floor(Math.random() * 3) - 1);
             let t = pool[Math.floor(Math.random() * pool.length)];
             e.name = t.name; e.avatar = t.avatar;
@@ -2091,7 +2111,7 @@ function endBattle(playerWon) {
             let zs = ensureZombieStats();
             zs.totalKills = (zs.totalKills || 0) + killCount;
             // Per-kill rewards: scaled gold + 1 Magic Stone per kill
-            let invasionGoldGain = Math.floor(killCount * (10 + player.lvl * 2));
+            let invasionGoldGain = killCount * 10;
             globalProgression.gold += invasionGoldGain;
             globalProgression.inventory.magic_stone = (globalProgression.inventory.magic_stone || 0) + killCount;
             rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-green-700 text-green-400 font-bold shadow-md">🧟 +${invasionGoldGain} Gold</div>`;
@@ -2382,6 +2402,7 @@ function endBattle(playerWon) {
             if(enh.type === 'xpIncrease') xpMult += ENHANCEMENT_DEFS.xpIncrease.vals[enh.rarity];
         });
         totalXp = Math.floor(totalXp * xpMult);
+        if(currentMode === 'invasion') totalXp = Math.floor(totalXp * 0.40);
         document.getElementById('end-xp-amount').innerText = totalXp; globalProgression.totalExpEarned += totalXp;
 
         // Gold per kill (not in quest, training, or dungeon mode)

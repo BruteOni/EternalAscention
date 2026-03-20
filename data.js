@@ -638,3 +638,11 @@ const ZOMBIE_TITLES = [
     { id: 'last_human', name: 'The Last Human', wavesRequired: 90 },
     { id: 'legend', name: 'The Legend', wavesRequired: 100 }
 ];
+
+const ZOMBIE_BOSSES = [
+    { name: 'Zombie King', avatar: '🧟‍♂️👑', hpMult: 6, dmgMult: 3 },
+    { name: 'Necrotic Hulk', avatar: '🧟💀', hpMult: 7, dmgMult: 2.5 },
+    { name: 'Plague Bearer', avatar: '🧟☠️', hpMult: 5, dmgMult: 3.5 },
+    { name: 'Rotting Titan', avatar: '🧟🦴', hpMult: 6.5, dmgMult: 2.8 },
+    { name: 'Undead Warlord', avatar: '🧟⚔️', hpMult: 5.5, dmgMult: 3.2 }
+];

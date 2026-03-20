@@ -383,13 +383,22 @@ function showInvasion() {
     let titlesList = document.getElementById('za-titles-list');
     if(titlesList && typeof ZOMBIE_TITLES !== 'undefined') {
         let titlesHtml = '';
-        ZOMBIE_TITLES.forEach(t => {
+        ZOMBIE_TITLES.forEach((t, idx) => {
             let earned = (zs.titlesEarned || []).includes(t.id);
+            let cumBonus = idx + 1; // +1% per title earned up to this one
             titlesHtml += `<div class="flex justify-between items-center text-xs py-1 border-b border-gray-700 last:border-0">
                 <span class="${earned ? 'text-amber-300 font-bold' : 'text-gray-500'}">${earned ? '🏆' : '🔒'} ${t.name}</span>
-                <span class="${earned ? 'text-green-400' : 'text-gray-600'}">${earned ? 'Earned' : t.wavesRequired + ' waves'}</span>
+                <span class="${earned ? 'text-green-400' : 'text-gray-600'} flex flex-col items-end">
+                    <span>${earned ? 'Earned' : t.wavesRequired + ' waves'}</span>
+                    <span class="text-purple-300 text-[10px]">(+${cumBonus}% DMG, +${cumBonus}% AP, +${cumBonus}% DR)</span>
+                </span>
             </div>`;
         });
+        let titlesEarnedCount = (zs.titlesEarned || []).length;
+        let currentBonus = titlesEarnedCount;
+        titlesHtml += `<div class="mt-2 pt-2 border-t border-gray-600 text-xs text-center text-gray-300">
+            📊 Current Title Bonus: <span class="text-green-400 font-bold">+${currentBonus}% DMG</span> / <span class="text-blue-400 font-bold">+${currentBonus}% Armor Pierce</span> / <span class="text-yellow-400 font-bold">+${currentBonus}% DR</span> <span class="text-gray-500">(${titlesEarnedCount}/10 titles earned)</span>
+        </div>`;
         titlesList.innerHTML = titlesHtml;
     }
 
