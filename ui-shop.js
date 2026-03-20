@@ -87,30 +87,6 @@ function openEnchantModal(slot) {
     document.getElementById('enchant-modal-title').innerText = `Enchant ${eq.name}`;
     const list = document.getElementById('enchant-modal-list'); list.innerHTML = '';
 
-    // Show item stats before core options
-    let statsHtml = '<div class="bg-gray-900 border border-gray-600 rounded-lg p-3 mb-3">';
-    statsHtml += `<div class="text-sm font-bold text-white mb-2">📊 Current Stats — ${sanitizeHTML(eq.name)}</div>`;
-    statsHtml += '<div class="grid grid-cols-2 gap-1 text-xs">';
-    if(eq.stats) {
-        const STAT_LABELS = { dmg: '⚔️ Damage', def: '🛡️ Defense', hp: '❤️ HP', critChance: '🎯 Crit%', critDmg: '💥 Crit Dmg', dodge: '💨 Dodge', armorPierce: '🗡️ Armor Pierce', dmgMitigation: '🛡️ Dmg Mitigation' };
-        Object.entries(eq.stats).forEach(([key, val]) => {
-            if(val && val !== 0) {
-                let label = STAT_LABELS[key] || key;
-                statsHtml += `<div class="text-gray-300"><span class="text-gray-500">${label}:</span> <span class="text-yellow-300 font-bold">${typeof val === 'number' && val < 1 ? (val * 100).toFixed(1) + '%' : val}</span></div>`;
-            }
-        });
-    }
-    if(eq.bonusStats && eq.bonusStats.length > 0) {
-        eq.bonusStats.forEach(bs => {
-            if(bs.value && bs.value !== 0) {
-                let label = bs.stat || bs.key || 'Bonus';
-                statsHtml += `<div class="text-purple-300"><span class="text-gray-500">${label}:</span> <span class="font-bold">+${typeof bs.value === 'number' && bs.value < 1 ? (bs.value * 100).toFixed(1) + '%' : bs.value}</span></div>`;
-            }
-        });
-    }
-    statsHtml += '</div></div>';
-    list.innerHTML = statsHtml;
-    
     const cores = [
         { id: 'ench_common', name: 'Normal Core', boost: 5, color: 'gray', mult: 1.05 },
         { id: 'ench_rare', name: 'Rare Core', boost: 10, color: 'blue', mult: 1.10 },
@@ -118,22 +94,109 @@ function openEnchantModal(slot) {
         { id: 'ench_legendary', name: 'Legendary Core', boost: 40, color: 'yellow', mult: 1.40 }
     ];
 
-    cores.forEach(c => {
-        let amt = globalProgression.inventory[c.id] || 0;
-        let btn = document.createElement('button');
-        let canEnch = amt > 0;
-        btn.className = `bg-gray-900 border-2 border-${c.color}-500 p-3 rounded-lg flex justify-between items-center transition ${canEnch ? 'hover:bg-gray-700 active:scale-95' : 'opacity-50 cursor-not-allowed'}`;
-        btn.disabled = !canEnch;
-        btn.innerHTML = `
-            <div class="text-left flex items-center gap-3">
-                <span class="text-2xl">${MAT_ICONS[c.id]}</span>
-                <div><div class="font-bold text-${c.color}-400">${c.name} <span class="text-white text-xs ml-1">x${amt}</span></div><div class="text-[10px] text-gray-400">+${c.boost}% Stats</div></div>
-            </div>
-            <div class="text-xs font-bold text-white bg-${c.color}-700 px-3 py-1 rounded shadow">USE</div>
-        `;
-        if(canEnch) { btn.onclick = () => { applyEnchant(c.id, c.mult, c.name); }; }
-        list.appendChild(btn);
-    });
+    // Render stats panel (will be updated on core preview)
+    function renderStatsPanel(previewMult, previewCoreName) {
+        let statsHtml = '<div id="enchant-stats-panel" class="bg-gray-900 border border-gray-600 rounded-lg p-3 mb-3">';
+        statsHtml += `<div class="text-sm font-bold text-white mb-2">📊 ${previewCoreName ? '🔍 Preview — ' + sanitizeHTML(previewCoreName) : 'Current Stats — ' + sanitizeHTML(eq.name)}</div>`;
+        statsHtml += '<div class="grid grid-cols-2 gap-1 text-xs">';
+        if(eq.weaponBaseDmgPct) {
+            let val = eq.weaponBaseDmgPct;
+            let displayVal = (val * 100).toFixed(1) + '%';
+            if(previewMult) {
+                let newVal = val * previewMult;
+                let newDisplay = (newVal * 100).toFixed(1) + '%';
+                statsHtml += `<div class="text-gray-300"><span class="text-gray-500">⚔️ Weapon Dmg:</span> <span class="text-yellow-300 font-bold">+${displayVal}</span> <span class="text-green-400 font-bold">→ +${newDisplay}</span></div>`;
+            } else {
+                statsHtml += `<div class="text-gray-300"><span class="text-gray-500">⚔️ Weapon Dmg:</span> <span class="text-yellow-300 font-bold">+${displayVal}</span></div>`;
+            }
+        }
+        if(eq.stats) {
+            const STAT_LABELS = { dmg: '⚔️ Damage', def: '🛡️ Defense', hp: '❤️ HP', critChance: '🎯 Crit%', critDmg: '💥 Crit Dmg', dodge: '💨 Dodge', armorPierce: '🗡️ Armor Pierce', dmgMitigation: '🛡️ Dmg Mitigation' };
+            Object.entries(eq.stats).forEach(([key, val]) => {
+                if(val && val !== 0) {
+                    let label = STAT_LABELS[key] || key;
+                    let isPercent = typeof val === 'number' && val < 1;
+                    let displayVal = isPercent ? (val * 100).toFixed(1) + '%' : val;
+                    if(previewMult) {
+                        let newVal = key === 'hp' ? Math.floor(val * previewMult) + 1 : key === 'dmg' || key === 'def' ? Math.floor(val * previewMult) + 1 : isPercent ? val * previewMult : val;
+                        let newDisplay = isPercent ? (newVal * 100).toFixed(1) + '%' : newVal;
+                        if(newVal !== val) {
+                            statsHtml += `<div class="text-gray-300"><span class="text-gray-500">${label}:</span> <span class="text-yellow-300 font-bold">${displayVal}</span> <span class="text-green-400 font-bold">→ ${newDisplay}</span></div>`;
+                        } else {
+                            statsHtml += `<div class="text-gray-300"><span class="text-gray-500">${label}:</span> <span class="text-yellow-300 font-bold">${displayVal}</span></div>`;
+                        }
+                    } else {
+                        statsHtml += `<div class="text-gray-300"><span class="text-gray-500">${label}:</span> <span class="text-yellow-300 font-bold">${displayVal}</span></div>`;
+                    }
+                }
+            });
+        }
+        if(eq.bonusStats && eq.bonusStats.length > 0) {
+            eq.bonusStats.forEach(bs => {
+                if(bs.value && bs.value !== 0) {
+                    let label = bs.stat || bs.key || 'Bonus';
+                    let isPercent = typeof bs.value === 'number' && bs.value < 1;
+                    let displayVal = isPercent ? (bs.value * 100).toFixed(1) + '%' : bs.value;
+                    if(previewMult && bs.stat !== 'bonusCdReduc') {
+                        let newVal = bs.value * previewMult;
+                        let newDisplay = isPercent ? (newVal * 100).toFixed(1) + '%' : newVal.toFixed(2);
+                        statsHtml += `<div class="text-purple-300"><span class="text-gray-500">${label}:</span> <span class="font-bold">+${displayVal}</span> <span class="text-green-400 font-bold">→ +${newDisplay}</span></div>`;
+                    } else {
+                        statsHtml += `<div class="text-purple-300"><span class="text-gray-500">${label}:</span> <span class="font-bold">+${displayVal}</span></div>`;
+                    }
+                }
+            });
+        }
+        statsHtml += '</div></div>';
+        return statsHtml;
+    }
+
+    let activeCoreId = null;
+
+    function renderCores() {
+        let html = renderStatsPanel(activeCoreId ? cores.find(c => c.id === activeCoreId)?.mult : null,
+                                    activeCoreId ? cores.find(c => c.id === activeCoreId)?.name : null);
+        cores.forEach(c => {
+            let amt = globalProgression.inventory[c.id] || 0;
+            let canEnch = amt > 0;
+            let isActive = activeCoreId === c.id;
+            html += `<div data-core="${c.id}" class="bg-gray-900 border-2 border-${c.color}-${isActive ? '400' : '500'} p-3 rounded-lg flex justify-between items-center transition ${canEnch ? 'hover:bg-gray-700 cursor-pointer' : 'opacity-50 cursor-not-allowed'} ${isActive ? 'ring-2 ring-' + c.color + '-300 bg-gray-800' : ''}">
+                <div class="text-left flex items-center gap-3">
+                    <span class="text-2xl">${MAT_ICONS[c.id]}</span>
+                    <div><div class="font-bold text-${c.color}-400">${c.name} <span class="text-white text-xs ml-1">x${amt}</span></div><div class="text-[10px] text-gray-400">+${c.boost}% Stats</div></div>
+                </div>
+                <button data-use="${c.id}" class="text-xs font-bold text-white bg-${c.color}-700 px-3 py-1 rounded shadow ${canEnch ? 'hover:bg-' + c.color + '-600 active:scale-95' : 'opacity-50 cursor-not-allowed'}" ${canEnch ? '' : 'disabled'}>USE</button>
+            </div>`;
+        });
+        list.innerHTML = html;
+
+        // Attach click handlers to rows (preview) and USE buttons (apply)
+        cores.forEach(c => {
+            let amt = globalProgression.inventory[c.id] || 0;
+            let canEnch = amt > 0;
+            let row = list.querySelector(`[data-core="${c.id}"]`);
+            let useBtn = list.querySelector(`[data-use="${c.id}"]`);
+            if(row && canEnch) {
+                row.addEventListener('click', (ev) => {
+                    if(ev.target.closest('[data-use]')) return; // USE button handled separately
+                    if(activeCoreId === c.id) {
+                        activeCoreId = null;
+                    } else {
+                        activeCoreId = c.id;
+                    }
+                    renderCores();
+                });
+            }
+            if(useBtn && canEnch) {
+                useBtn.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    applyEnchant(c.id, c.mult, c.name);
+                });
+            }
+        });
+    }
+
+    renderCores();
 
     document.getElementById('modal-enchant').style.display = 'flex';
 }
