@@ -52,7 +52,7 @@ function setStat(id, value) {
  */
 function clearCharNotifications() {
     globalProgression.newItems = {};
-    saveGame();
+    queueSave();
     showCharacter();
 }
 

@@ -98,7 +98,7 @@ function unequipCurrent() {
         globalProgression.equipInventory.push(globalProgression.equipped[activeEquipSlot]);
         globalProgression.equipped[activeEquipSlot] = null;
         player.maxHp = calculateMaxHp(); if(player.currentHp > player.maxHp) player.currentHp = player.maxHp;
-        playSound('click'); saveGame(); 
+        playSound('click'); queueSave(); 
         openEquipModal(activeEquipSlot); 
         showCharacter();
     }
@@ -128,7 +128,7 @@ function quickEquipAll() {
     });
     player.maxHp = calculateMaxHp();
     playSound('shield');
-    saveGame();
+    queueSave();
     showCharacter();
 }
 
@@ -139,7 +139,7 @@ function equipItem(itemId) {
         if(globalProgression.equipped[activeEquipSlot]) globalProgression.equipInventory.push(globalProgression.equipped[activeEquipSlot]);
         globalProgression.equipped[activeEquipSlot] = item;
         player.maxHp = calculateMaxHp();
-        playSound('shield'); saveGame(); 
+        playSound('shield'); queueSave(); 
         openEquipModal(activeEquipSlot);
         showCharacter();
     }

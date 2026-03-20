@@ -51,7 +51,7 @@ function openSkillModal(slotIndex) {
         btn.innerHTML = `<div><div class="font-bold text-white">${sanitizeHTML(skill.name)}</div><div class="text-xs text-gray-300">${sanitizeHTML(skill.desc)}</div><div class="text-[10px] text-yellow-400">CD: ${skill.cd} turns</div></div> <div class="text-2xl">${isEquipped?'✅':''}</div>`;
         if(!isEquipped) {btn.onclick = () => {
             player.equippedSkills[activeSkillSlot] = skillIdx;
-            playSound('click'); saveGame(); closeSkillModal();
+            playSound('click'); queueSave(); closeSkillModal();
         };}
         list.appendChild(btn);
     });
@@ -59,7 +59,7 @@ function openSkillModal(slotIndex) {
     document.getElementById('modal-skills').style.display = 'flex';
 }
 function unequipSkill() {
-    if(activeSkillSlot !== null && activeSkillSlot !== 0) { player.equippedSkills[activeSkillSlot] = null; playSound('click'); saveGame(); closeSkillModal(); }
+    if(activeSkillSlot !== null && activeSkillSlot !== 0) { player.equippedSkills[activeSkillSlot] = null; playSound('click'); queueSave(); closeSkillModal(); }
 }
 function closeSkillModal() { document.getElementById('modal-skills').style.display = 'none'; showCharacter(); }
 
@@ -269,7 +269,7 @@ function unlockSkillMenuNode(choice) {
         player.skillMenuNodeChoices[progress] = 'skill';
         player.skillMenuProgress = progress + 1;
         player.maxHp = calculateMaxHp();
-        saveGame();
+        queueSave();
         playSound('win');
         _spawnSkillMenuSparkles(`skill-menu-node-${progress}`);
         showSkillUnlockPopup(skillIdx);
@@ -313,7 +313,7 @@ function unlockSkillMenuNode(choice) {
     player.skillMenuNodeChoices[progress] = { stat: choice, value: bonus };
     player.skillMenuProgress = progress + 1;
     player.maxHp = calculateMaxHp();
-    saveGame();
+    queueSave();
     playSound('buff');
     _spawnSkillMenuSparkles(`skill-menu-node-${progress}`);
     showSkillMenu();
@@ -347,7 +347,7 @@ function resetSkillMenu() {
 
     player.maxHp = calculateMaxHp();
     player.currentHp = player.maxHp;
-    saveGame();
+    queueSave();
     showSkillMenu();
 }
 

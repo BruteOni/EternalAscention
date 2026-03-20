@@ -133,7 +133,7 @@ function enhanceWithSet(itemRef, setKey) {
     item.setBonus = { setKey, setName: setDef.name };
 
     playSound('win');
-    saveGame();
+    queueSave();
     document.getElementById('me-status').innerText = `✨ ${item.name} enhanced with ${setDef.name} set!`;
     showMagicalEnhancer();
 }
@@ -220,7 +220,7 @@ function copyToClipboard(text, btn) {
 }
 
 function showExport() {
-    saveGame();
+    saveGame(); // Intentional: flush all pending queueSave() changes to localStorage before reading for export
     const saveData = localStorage.getItem('EternalAscensionSaveDataV1') || localStorage.getItem('fogFighterSaveDataV22') || localStorage.getItem('fogFighterSaveDataV21') || localStorage.getItem('fogFighterSaveDataV20');
     if (!saveData) {
         document.getElementById('sl-modal-title').innerText = "Export Save Data";
