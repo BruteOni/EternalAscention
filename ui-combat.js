@@ -2332,9 +2332,12 @@ function endBattle(playerWon) {
             const isBoss = e.isBoss;
             if(isBoss && currentMode !== 'graveyard') {
                 if(!globalProgression.killedBosses) globalProgression.killedBosses = {};
-                if(Object.keys(globalProgression.killedBosses).length < 20) {
-                    globalProgression.killedBosses[e.name] = { name: e.name, avatar: e.avatar, hpMult: e.templateMults?.hpMult || 3, dmgMult: e.templateMults?.dmgMult || 2 };
+                const killedKeys = Object.keys(globalProgression.killedBosses);
+                if(killedKeys.length >= 20) {
+                    // Remove the oldest entry to make room
+                    delete globalProgression.killedBosses[killedKeys[0]];
                 }
+                globalProgression.killedBosses[e.name] = { name: e.name, avatar: e.avatar, hpMult: e.templateMults?.hpMult || 3, dmgMult: e.templateMults?.dmgMult || 2 };
             }
 
             // Mythic boss: guaranteed mythic gear drop
