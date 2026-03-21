@@ -2628,6 +2628,8 @@ function endBattle(playerWon) {
                 desc.innerText = `You conquered Tier ${activeDungeonTier}!`; btnNext.classList.add('hidden'); 
                 
                 if(activeDungeonTier === globalProgression.dungeonTier) globalProgression.dungeonTier++; 
+                const btnHub = document.getElementById('btn-end-hub');
+                if(btnHub) { btnHub.innerText = '🗼 Return to Tower of Babel'; btnHub.onclick = showDungeons; }
             } else { desc.innerText = "Floor cleared. Continue climbing!"; btnNext.innerText = "Next Floor"; btnNext.classList.remove('hidden'); }
         } else if (currentMode === 'graveyard') {
             desc.innerText = "Boss Soul Harvested.";
@@ -2751,6 +2753,11 @@ function endBattle(playerWon) {
         if(zaBtn) { zaBtn.innerText = '🧟 Zombie Apocalypse Menu'; zaBtn.onclick = showInvasion; }
         setTimeout(() => showInvasion(), 3500);
     }
+    // After a dungeon defeat, return to Tower of Babel menu
+    if(currentMode === 'dungeon' && !playerWon) {
+        const dBtn = document.getElementById('btn-end-hub');
+        if(dBtn) { dBtn.innerText = '🗼 Return to Tower of Babel'; dBtn.onclick = showDungeons; }
+    }
 }
 
 function handleEndNext() { 
@@ -2768,7 +2775,15 @@ function handleEndNext() {
             }
             startBattle(false); 
         }
-        else { returnToTown(); }
+        else { 
+            combatActive = false;
+            battleEnding = false;
+            isAutoBattle = false;
+            enemies = [];
+            const btn = document.getElementById('btn-auto');
+            if(btn) { btn.classList.remove('auto-on'); btn.disabled = false; btn.classList.remove('opacity-50'); }
+            showDungeons();
+        }
     } else if (currentMode === 'invasion') {
         // Zombie Apocalypse — check energy before starting next wave
         if(consumeEnergy(1)) {
