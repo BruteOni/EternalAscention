@@ -433,7 +433,7 @@ let player = {
 let enemies = []; let savedEnemies = {}; let activeTargetIndex = 0; let currentMode = 'none'; 
 const NON_PERSIST_MODES = ['quest', 'training', 'graveyard', 'invasion', 'dungeon', 'apocalypse'];
 let activeDungeonTier = 1; let activeDungeonFloor = 1; 
-let isPlayerTurn = true; let combatLog = []; let isAutoBattle = false; let combatActive = false; let battleEnding = false;
+let isPlayerTurn = true; let combatLog = []; let isAutoBattle = false; let combatActive = false; let battleEnding = false; let autoContinueTimer = null;
 let activeGraveyardBoss = null;
 // Invasion state
 let invasionTotalKills = 0; let invasionKillGoal = 10; let invasionMaxOnScreen = 5; let invasionSpawned = 0;
