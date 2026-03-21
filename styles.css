@@ -400,4 +400,11 @@ body { margin: 0; padding: 0; overflow: hidden; background-color: #111; color: w
     white-space: nowrap;
     display: inline-block;
     filter: drop-shadow(0 0 4px rgba(255, 165, 0, 0.8));
+    animation: crown-glow 2s ease-in-out infinite;
+    background-size: 200% auto;
+}
+
+@keyframes crown-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 16px rgba(255, 69, 0, 0.4); background-position: 0% center; }
+    50% { box-shadow: 0 0 16px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 69, 0, 0.8); background-position: 100% center; }
 }

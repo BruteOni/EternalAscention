@@ -307,6 +307,8 @@ function showWeaponSmith() {
     document.getElementById('ws-gold-display').innerText = p.gold;
     document.getElementById('ws-shards-display').innerText = p.inventory.titan_shard || 0;
     document.getElementById('ws-log').innerText = '';
+    const wsDustEl = document.getElementById('ws-dust-display');
+    if (wsDustEl) wsDustEl.innerText = p.inventory.ethereal_dust || 0;
 
     const list = document.getElementById('ws-weapon-list');
     list.innerHTML = '';
@@ -441,7 +443,22 @@ function showWeaponSmith() {
         list.innerHTML = '<p class="text-gray-500 text-sm text-center">No equipped items found. Equip items first.</p>';
     }
 
-    switchScreen('screen-weaponsmith');
+    // Titan Shard → Gold conversion section
+    const convHeader = document.createElement('div');
+    const shards = p.inventory.titan_shard || 0;
+    convHeader.innerHTML = `<div class="bg-gray-800 border border-yellow-700 rounded-xl p-3 mt-4 flex items-center justify-between">
+        <div>
+            <div class="font-bold text-yellow-300 text-sm">🔱 Titan Shard → Gold</div>
+            <div class="text-xs text-gray-400">Convert Titan Shards to Gold (1 shard = 10 gold)</div>
+            <div class="text-xs text-gray-400 mt-1">Shards: <span class="text-cyan-300 font-bold">${shards}</span></div>
+        </div>
+        <button onclick="convertTitanShardToGold()"
+            class="bg-yellow-700 hover:bg-yellow-600 text-white px-3 py-2 rounded font-bold text-xs transition active:scale-95 ${shards < 1 ? 'opacity-50 cursor-not-allowed' : ''}"
+            ${shards < 1 ? 'disabled' : ''}>
+            Convert 1🔱<br><span class="text-yellow-300">→ 10💰</span>
+        </button>
+    </div>`;
+    list.appendChild(convHeader);
 }
 
 function enhanceWeapon(itemId) {
@@ -493,10 +510,12 @@ function enhanceWeapon(itemId) {
 
 function convertTitanShardToGold() {
     const p = globalProgression;
-    if ((p.inventory.titan_shard || 0) < 1) { addLog('Not enough Titan Shards!', 'text-red-400'); return; }
+    const log = document.getElementById('ws-log');
+    if ((p.inventory.titan_shard || 0) < 1) { if(log) log.innerText = '❌ Not enough Titan Shards!'; return; }
     p.inventory.titan_shard--;
     globalProgression.gold += 10;
     queueSave();
+    if(log) log.innerText = '✅ 1 🔱 Titan Shard → 10 💰 Gold';
     showWeaponSmith();
 }
 

@@ -2317,10 +2317,9 @@ function endBattle(playerWon) {
             zombieWaveCount++;
             zombieConsecutiveWaves++;
             zs.maxWavesSurvived = Math.max(zs.maxWavesSurvived || 0, zombieConsecutiveWaves);
-            // Check every-10-wave potion reward
-            if(zombieConsecutiveWaves > 0 && zombieConsecutiveWaves % 10 === 0) {
-                zs.pendingPotionRewards = (zs.pendingPotionRewards || 0) + 1;
-            }
+            // Give 1 soul pebble per wave completed
+            globalProgression.inventory.soul_pebbles = (globalProgression.inventory.soul_pebbles || 0) + 1;
+            rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-purple-700 text-purple-400 font-bold shadow-md">+1 🔮 Soul Pebble</div>`;
             // Check 100-wave cooldown buff
             if(zombieConsecutiveWaves >= 100 && !zs.cooldownBuffEarned) {
                 zs.cooldownBuffEarned = true;

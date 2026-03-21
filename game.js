@@ -1034,7 +1034,18 @@ function calculateMaxHp() {
     if (typeof getEquipBonusStat === 'function') {
         hpBoostMult *= (1 + getEquipBonusStat('bonusHpPct'));
     }
-    return Math.floor(base * hpBoostMult * (1 + (player.skillMenuBonusHpPct || 0) / 100) * (1 + (globalProgression.pebbleBonusHp || 0) * 0.01) * (1 + getTitleStatBonus()));
+    // Apply armor upgrade flat HP bonuses (+100 HP per level for HP armor slots)
+    const HP_ARMOR_SLOTS = ['head', 'shoulders', 'arms', 'chest', 'waist', 'legs', 'boots'];
+    let armorUpgradeHp = 0;
+    let armorUpgradeHpPct = 0;
+    HP_ARMOR_SLOTS.forEach(slot => {
+        const item = (globalProgression.equipped || {})[slot];
+        if (item && item.armorEnhance) {
+            armorUpgradeHp += item.armorEnhance * 100;
+            if (item.armorEnhance >= 100) armorUpgradeHpPct += 0.10;
+        }
+    });
+    return Math.floor((base * hpBoostMult * (1 + (player.skillMenuBonusHpPct || 0) / 100) * (1 + (globalProgression.pebbleBonusHp || 0) * 0.01) * (1 + getTitleStatBonus()) + armorUpgradeHp) * (1 + armorUpgradeHpPct));
 }
 
 /**
@@ -1080,7 +1091,18 @@ function getBaseDamage() {
  */
 function getPlayerDef() {
     const a = globalProgression.attributes;
-    return Math.floor((50 + (a.defense || 0) + player.treeBonusDef) * (1 + (player.skillMenuBonusDefPct || 0) / 100) * (1 + (globalProgression.pebbleBonusDef || 0) * 0.01) * (1 + getTitleStatBonus()));
+    // Accessory upgrade DEF bonuses (+5 DEF per level for DEF accessory slots)
+    const DEF_ACCESSORY_SLOTS = ['necklace', 'ring', 'cape'];
+    let accUpgradeDef = 0;
+    DEF_ACCESSORY_SLOTS.forEach(slot => {
+        const item = (globalProgression.equipped || {})[slot];
+        if (item && item.armorEnhance) {
+            accUpgradeDef += item.armorEnhance * 5;
+        }
+    });
+    const baseDef = Math.floor((50 + (a.defense || 0) + player.treeBonusDef + accUpgradeDef) * (1 + (player.skillMenuBonusDefPct || 0) / 100) * (1 + (globalProgression.pebbleBonusDef || 0) * 0.01) * (1 + getTitleStatBonus()));
+    // Accessory max mitigation bonus (+10% reduced damage at level 100)
+    return baseDef;
 }
 
 // Returns the permanent base attributes for each class (cannot go below these).
