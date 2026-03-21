@@ -2200,6 +2200,7 @@ function endBattle(playerWon) {
         return;  // Already ended or ending — prevent double-fire
     }
     battleEnding = true;
+    if(autoContinueTimer) { clearTimeout(autoContinueTimer); autoContinueTimer = null; }
     stopMusic();
     combatActive = false;
 
@@ -2250,7 +2251,7 @@ function endBattle(playerWon) {
             btnNext.innerText = "Next Wave"; btnNext.classList.remove('hidden'); xpCont.classList.add('hidden');
             switchScreen('screen-end');
             queueSave(); 
-            if(isAutoBattle) { btnNext.innerText = "Auto-Continuing in 4s..."; setTimeout(() => { if(isAutoBattle) startBattle(false); }, 4000); }
+            btnNext.innerText = "Auto-Continuing in 3s..."; autoContinueTimer = setTimeout(() => startBattle(false), 3000);
             return; 
         }
 
@@ -2649,9 +2650,9 @@ function endBattle(playerWon) {
         }, 100);
 
         queueSave(); 
-        if(isAutoBattle && currentMode !== 'graveyard' && !btnNext.classList.contains('hidden')) {
-            btnNext.innerText = "Auto-Continuing in 4s...";
-            setTimeout(() => { if(isAutoBattle) handleEndNext(); }, 4000);
+        if(currentMode !== 'graveyard' && currentMode !== 'apocalypse' && !btnNext.classList.contains('hidden')) {
+            btnNext.innerText = "Auto-Continuing in 3s...";
+            autoContinueTimer = setTimeout(() => handleEndNext(), 3000);
         }
 
     } else {
@@ -2687,6 +2688,7 @@ function endBattle(playerWon) {
 }
 
 function handleEndNext() { 
+    if(autoContinueTimer) { clearTimeout(autoContinueTimer); autoContinueTimer = null; }
     if (currentMode === 'dungeon') {
         if (activeDungeonFloor < 5) { 
             activeDungeonFloor++; 
