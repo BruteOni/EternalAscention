@@ -185,16 +185,18 @@
                     <!-- Right: Merged name/level+stats button, then gold/tickets below -->
                     <div class="w-1/2 flex flex-col gap-2">
                         <button id="hub-info-btn" onclick="showProgressMenu()" class="flex-1 text-left bg-gray-700 hover:bg-gray-600 active:scale-95 transition border border-indigo-500 rounded-xl px-2 py-1.5 shadow-md w-full" aria-label="View character progress and stats">
-                            <div class="font-bold text-base text-blue-400 flex items-center justify-between">
-                                <span id="hub-class">Warrior</span>
-                                <span class="text-yellow-400 text-sm font-bold">Lvl <span id="hub-lvl">1</span></span>
+                            <div class="flex flex-col">
+                                <div class="font-bold text-base flex items-center justify-between">
+                                    <span id="hub-class" class="text-blue-400">Warrior</span>
+                                    <div id="hub-title-badge" class="hidden"></div>
+                                    <span class="text-yellow-400 text-sm font-bold">Lvl <span id="hub-lvl">1</span></span>
+                                </div>
+                                <div class="text-xs font-bold text-white text-center mt-0.5">tap to view stats</div>
                             </div>
-                            <div class="text-xs text-white text-center mt-0.5">tap to view stats</div>
                         </button>
                         <div class="flex flex-col gap-1.5">
                             <div class="flex items-center gap-1 text-sm font-bold text-yellow-500 bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 whitespace-nowrap" title="Your current wealth">💰 <span id="hub-gold">0</span></div>
                             <div class="flex items-center gap-1 text-xs font-bold text-blue-300 bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 whitespace-nowrap" title="Required to enter the Tower of Babel">🎫 <span id="hub-tickets">0</span></div>
-                            <div id="hub-title-badge" class="hidden"></div>
                         </div>
                     </div>
                 </div>
@@ -1321,7 +1323,7 @@
             </div>
             <h2 class="text-3xl font-black mb-2 text-center tracking-widest drop-shadow-md" style="color:#ff4444;text-shadow:0 0 20px rgba(255,0,0,0.8);">💀 APOCALYPSE</h2>
             <p class="text-gray-400 mb-4 text-sm text-center bg-gray-900 py-2 rounded-lg border border-red-900">
-                Face the Obsidian Colossus — a mirror of your power with 3× your HP and damage.<br>
+                Face the Obsidian Colossus — a powerful stone titan with 100x your HP and 15x your damage.<br>
                 <span class="text-red-400 font-bold">Minimum Level 500 required.</span><br>
                 <span class="text-yellow-300">No usable items. No auto-battle.</span><br>
                 <span class="text-purple-300 font-bold">Win to earn the Crown of Infinity title!</span>
