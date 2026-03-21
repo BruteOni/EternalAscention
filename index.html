@@ -924,14 +924,14 @@
     <div id="screen-dungeons" class="screen py-8">
         <div class="w-full max-w-xl px-4 flex flex-col h-full">
             <div class="flex justify-between items-center mb-6">
-                <button onclick="showPortal()" class="btn-back text-red-400 px-4 py-2 rounded-lg font-bold flex items-center gap-2"><span>⬅️</span> Portal</button>
+                <button onclick="showPortal()" class="btn-back text-yellow-400 px-4 py-2 rounded-lg font-bold flex items-center gap-2"><span>⬅️</span> Portal</button>
                 <div class="flex gap-2">
                     <div class="text-sm font-bold text-yellow-500 bg-gray-800 px-3 py-1 rounded-full border border-yellow-700 shadow-md">💰 <span id="dungeon-gold-display">0</span></div>
                     <div class="text-sm font-bold text-blue-300 bg-gray-800 px-3 py-1 rounded-full border border-blue-800 shadow-md">🎫 <span id="dungeon-tickets-display">0</span> Tickets</div>
                 </div>
             </div>
-            <h2 class="text-3xl font-bold mb-2 text-red-500 text-center tracking-widest drop-shadow-md">🗼 TOWER OF BABEL</h2>
-            <p class="text-gray-400 mb-4 text-sm text-center bg-gray-900 py-2 rounded-lg border border-red-900">Climb as many floors as you can for 2x XP. Costs 1 🎫. <br><span class="text-yellow-400 font-bold">Every floor: +10 Ethereal Dust | Every 100 floors: +20 Soul Pebbles</span></p>
+            <h2 class="text-3xl font-bold mb-2 text-yellow-400 text-center tracking-widest drop-shadow-md">🗼 TOWER OF BABEL</h2>
+            <p class="text-gray-400 mb-4 text-sm text-center bg-gray-900 py-2 rounded-lg border border-yellow-800">Climb as many floors as you can for 2x XP. Costs 1 🎫. <br><span class="text-yellow-400 font-bold">Every floor: +10 Ethereal Dust | Every 100 floors: +20 Soul Pebbles</span></p>
             <div class="bg-gray-800 border border-purple-800 rounded-xl p-4 mb-6 shadow-inner flex justify-between items-center">
                 <div>
                     <h3 class="font-bold text-purple-300 flex items-center gap-2"><span class="text-2xl">🎫</span> Tower Ticket</h3>
@@ -1061,18 +1061,11 @@
             <h2 class="text-3xl font-bold mb-2 text-red-400 text-center tracking-widest drop-shadow-md">🌌 PORTAL</h2>
             <p class="text-xs text-gray-400 text-center mb-6">Choose your adventure through the Portal.</p>
             <div class="flex flex-col gap-4">
-                <button onclick="showDungeons()" class="bg-gray-800 hover:bg-gray-700 border border-red-800 hover:border-red-500 p-5 rounded-xl flex items-center gap-4 transition active:scale-95 shadow-lg">
+                <button onclick="showDungeons()" class="bg-gray-800 hover:bg-gray-700 border border-yellow-700 hover:border-yellow-400 p-5 rounded-xl flex items-center gap-4 transition active:scale-95 shadow-lg">
                     <span class="text-4xl">🌌</span>
                     <div class="text-left">
-                        <div class="font-bold text-red-400 text-lg">🗼 Tower of Babel</div>
+                        <div class="font-bold text-yellow-400 text-lg">🗼 Tower of Babel</div>
                         <div class="text-xs text-gray-400">Climb as many floors as you can for 2x XP. Costs 1 Ticket.</div>
-                    </div>
-                </button>
-                <button onclick="showInvasion()" id="portal-zombie-btn" class="bg-gray-800 hover:bg-gray-700 border border-green-800 hover:border-green-500 p-5 rounded-xl flex items-center gap-4 transition active:scale-95 shadow-lg">
-                    <span class="text-4xl">🧟</span>
-                    <div class="text-left">
-                        <div class="font-bold text-green-400 text-lg">Zombie Apocalypse</div>
-                        <div class="text-xs text-gray-400">Face zombie hordes scaling from level 100–500. Costs 1 ⚡ Energy per wave. High rewards!</div>
                     </div>
                 </button>
                 <button onclick="showPetBattle()" class="bg-gray-800 hover:bg-gray-700 border border-pink-800 hover:border-pink-500 p-5 rounded-xl flex items-center gap-4 transition active:scale-95 shadow-lg">
@@ -1080,6 +1073,13 @@
                     <div class="text-left">
                         <div class="font-bold text-pink-400 text-lg">Pet Battles</div>
                         <div class="text-xs text-gray-400">Rock-Paper-Scissors with pets! Win gold & XP.</div>
+                    </div>
+                </button>
+                <button onclick="showInvasion()" id="portal-zombie-btn" class="bg-gray-800 hover:bg-gray-700 border border-green-800 hover:border-green-500 p-5 rounded-xl flex items-center gap-4 transition active:scale-95 shadow-lg">
+                    <span class="text-4xl">🧟</span>
+                    <div class="text-left">
+                        <div class="font-bold text-green-400 text-lg">Zombie Apocalypse</div>
+                        <div class="text-xs text-gray-400">Face zombie hordes scaling from level 100–500. Costs 1 ⚡ Energy per wave. High rewards!</div>
                     </div>
                 </button>
                 <button onclick="showApocalypse()" id="portal-apocalypse-btn" class="bg-gray-800 hover:bg-gray-700 border border-red-600 hover:border-red-400 p-5 rounded-xl flex items-center gap-4 transition active:scale-95 shadow-lg" style="display:none;">
