@@ -550,6 +550,22 @@ function regenPetBattleEnergy() {
     }
 }
 
+function updatePetBattleEnergyDisplay() {
+    const energy = globalProgression.petBattleEnergy;
+    const MAX_PET_ENERGY = 10;
+    const DAILY_MS = 86400000;
+    const el = document.getElementById('pet-battle-energy-display');
+    if (!el) return;
+    if (energy < MAX_PET_ENERGY) {
+        const msLeft = Math.max(0, DAILY_MS - (Date.now() - (globalProgression.petBattleLastEnergyTime || Date.now())));
+        const hLeft = Math.floor(msLeft / 3600000);
+        const mLeft = Math.floor((msLeft % 3600000) / 60000);
+        el.innerText = `${energy}/10 ⏱ ${hLeft}h ${mLeft}m until refresh`;
+    } else {
+        el.innerText = `${energy}/10`;
+    }
+}
+
 const MAX_PET_FAVORITES = 3;
 
 function togglePetFavorite(petId) {
@@ -572,20 +588,7 @@ function togglePetFavorite(petId) {
 function showPetBattle() {
     regenPetBattleEnergy();
     document.getElementById('pet-battle-gold-display').innerText = globalProgression.gold;
-    const energy = globalProgression.petBattleEnergy;
-    const MAX_PET_ENERGY = 10;
-    const DAILY_MS = 86400000;
-    let energyText = `${energy}`;
-    if (energy < MAX_PET_ENERGY) {
-        const msPassed = Date.now() - (globalProgression.petBattleLastEnergyTime || Date.now());
-        const msLeft = Math.max(0, DAILY_MS - msPassed);
-        const hLeft = Math.floor(msLeft / 3600000);
-        const mLeft = Math.floor((msLeft % 3600000) / 60000);
-        energyText = `${energy}/10 ⏱ ${hLeft}h ${mLeft}m until refresh`;
-    } else {
-        energyText = `${energy}/10`;
-    }
-    document.getElementById('pet-battle-energy-display').innerText = energyText;
+    updatePetBattleEnergyDisplay();
     petBattleActive = false;
     petBattlePlayerPet = null;
 
@@ -842,7 +845,7 @@ function petBattleRoundEnd(playerWon) {
         showPetBattleVictory();
         queueSave();
         document.getElementById('pet-battle-gold-display').innerText = globalProgression.gold;
-        { const e2 = globalProgression.petBattleEnergy; const MAX_PET_ENERGY = 10; const DAILY_MS = 86400000; let et = e2 < MAX_PET_ENERGY ? (() => { const ml = Math.max(0, DAILY_MS - (Date.now() - (globalProgression.petBattleLastEnergyTime||Date.now()))); return `${e2}/10 ⏱ ${Math.floor(ml/3600000)}h ${Math.floor((ml%3600000)/60000)}m until refresh`; })() : `${e2}/10`; document.getElementById('pet-battle-energy-display').innerText = et; }
+        updatePetBattleEnergyDisplay();
         // Heal and start next round
         setTimeout(() => {
             petBattlePlayerHp = 5;

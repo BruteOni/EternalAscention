@@ -802,6 +802,7 @@ function updateCombatUI() {
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'burn')) { const t = player.activeBuffs.filter(b => b.type === 'burn').reduce((m,b) => Math.max(m, b.turns||0), 0); activeBuffsHtml += `<span class="bg-red-800 text-xs px-1 rounded border border-red-400 shadow-md">🔥Burn${t>0?'('+t+'t)':''}</span>`; }
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'fire_shield')) { const t = player.activeBuffs.filter(b => b.type === 'fire_shield').reduce((m,b) => Math.max(m, b.turns||0), 0); activeBuffsHtml += `<span class="bg-orange-800 text-xs px-1 rounded border border-orange-400 shadow-md">🔥Shield${t>0?'('+t+'t)':''}</span>`; }
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'ice_shield')) { const t = player.activeBuffs.filter(b => b.type === 'ice_shield').reduce((m,b) => Math.max(m, b.turns||0), 0); activeBuffsHtml += `<span class="bg-cyan-800 text-xs px-1 rounded border border-cyan-400 shadow-md">❄️Shield${t>0?'('+t+'t)':''}</span>`; }
+    // dodgeTurns = generic dodge (e.g., from dodge skills); ninjaDodgeTurns = ninja-specific dodge (different skill source)
     if(player.dodgeTurns > 0) activeBuffsHtml += `<span class="bg-gray-400 text-black text-xs px-1 rounded shadow-md">💨Dodge(${player.dodgeTurns}t)</span>`;
     if((player.ninjaDodgeTurns || 0) > 0) activeBuffsHtml += `<span class="bg-gray-400 text-black text-xs px-1 rounded shadow-md">💨Dodge(${player.ninjaDodgeTurns}t)</span>`;
     if(player.activeBuffs && player.activeBuffs.some(b => b.type === 'skill_reflect')) { const t = player.activeBuffs.filter(b => b.type === 'skill_reflect').reduce((m,b) => Math.max(m, b.turns||0), 0); activeBuffsHtml += `<span class="bg-orange-800 text-xs px-1 rounded border border-orange-400 shadow-md">🔄Reflect${t>0?'('+t+'t)':''}</span>`; }
@@ -2536,7 +2537,11 @@ function endBattle(playerWon) {
         // Graveyard gives 0 XP
         if(currentMode === 'graveyard') totalXp = 0;
         // Adventure hunt XP capped at level 100 rates
-        if(currentMode === 'hunting') { const cappedLvl = Math.min(player.lvl, 100); const cappedXp = getXpForNextLevel(cappedLvl); totalXp = Math.min(totalXp, Math.floor(cappedXp * 2)); }
+        if(currentMode === 'hunting') {
+            const cappedLevel = Math.min(player.lvl, 100);
+            const cappedNextLvlXp = getXpForNextLevel(cappedLevel);
+            totalXp = Math.min(totalXp, Math.floor(cappedNextLvlXp * 2));
+        }
         // Apply XP Increase enhancements + XP Gain from accessories
         let xpMult = 1 + getEquipBonusStat('bonusXpGain');
         (globalProgression.skillTreeEnhancements || []).forEach(enh => {
