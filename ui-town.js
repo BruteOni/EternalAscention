@@ -376,7 +376,7 @@ function enhanceWeapon(itemId) {
 
 function convertTitanShardToGold() {
     const p = globalProgression;
-    if ((p.inventory.titan_shard || 0) < 1) { addLog('Not enough titan shards!', 'text-red-400'); return; }
+    if ((p.inventory.titan_shard || 0) < 1) { addLog('Not enough Titan Shards!', 'text-red-400'); return; }
     p.inventory.titan_shard--;
     globalProgression.gold += 10;
     queueSave();

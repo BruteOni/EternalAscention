@@ -701,6 +701,7 @@ function makeInitialGlobalProgression() {
             fish_1: 0, fish_2: 0, fish_3: 0, fish_4: 0, fish_5: 0, fish_6: 0,
             soul_pebbles: 0,
             ethereal_dust: 0,
+            pot_i1: 0, pot_i2: 0, pot_i3: 0,
             pot_r1: 0, pot_r2: 0, pot_r3: 0,
             food_d1: 0, food_d2: 0, food_d3: 0,
             food_df1: 0, food_df2: 0, food_df3: 0,
