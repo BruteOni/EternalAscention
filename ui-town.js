@@ -124,7 +124,7 @@ function showWorkshop() {
             <p class="text-xs text-gray-400 text-center mb-3">Unequipped mythic items only. Gives 10 Soul Pebbles each.</p>`;
         list.appendChild(disenchantHeader);
 
-        if (unequippedMythic.length >= 2) {
+        if (unequippedMythic.length >= 1) {
             const totalPebbles = unequippedMythic.length * 10;
             const disenchantAllBtn = document.createElement('button');
             disenchantAllBtn.className = 'w-full bg-red-900 hover:bg-red-800 border border-red-500 text-white font-bold py-2 rounded-xl transition active:scale-95 text-sm shadow-md mb-3';
@@ -264,6 +264,17 @@ function showBurglar() {
     const list = document.getElementById('burglar-items-list');
     list.innerHTML = '';
 
+    const canBuyAny = Object.values(USABLE_ITEMS).some(item =>
+        globalProgression.gold >= item.price &&
+        (globalProgression.burglarDailyPurchasesPerItem[item.id] || 0) < 5
+    );
+    const buyAllBtn = document.createElement('button');
+    buyAllBtn.className = `w-full bg-orange-700 hover:bg-orange-600 text-white font-bold py-2 rounded-xl transition active:scale-95 text-sm shadow-md mb-3 border border-orange-500 ${canBuyAny ? '' : 'opacity-50 cursor-not-allowed'}`;
+    buyAllBtn.innerHTML = '🗡️ BUY ALL <span class="text-yellow-400 text-xs">(5x each)</span>';
+    buyAllBtn.disabled = !canBuyAny;
+    buyAllBtn.onclick = burglarBuyAll;
+    list.appendChild(buyAllBtn);
+
     Object.values(USABLE_ITEMS).forEach(item => {
         const itemCount = (globalProgression.burglarDailyPurchasesPerItem[item.id] || 0);
         const canBuy = globalProgression.gold >= item.price && itemCount < 5;
@@ -317,6 +328,40 @@ function burglarBuy(itemId) {
     globalProgression.burglarDailyPurchasesPerItem[itemId] = (globalProgression.burglarDailyPurchasesPerItem[itemId] || 0) + 1;
     const ps = ensureProgressStats(); ps.goldSpent += item.price;
     playSound('win');
+    queueSave();
+    showBurglar();
+}
+
+function burglarBuyAll() {
+    const today = new Date().toDateString();
+    if(globalProgression.burglarLastPurchaseDate !== today) {
+        globalProgression.burglarDailyPurchasesPerItem = {};
+        globalProgression.burglarLastPurchaseDate = today;
+    }
+    if(!globalProgression.burglarDailyPurchasesPerItem) globalProgression.burglarDailyPurchasesPerItem = {};
+    if(!globalProgression.usableItems) globalProgression.usableItems = {};
+    if(!player.equippedUsables) player.equippedUsables = [null, null, null, null, null, null, null];
+    const numUnlocked = Math.min(7, 1 + Math.floor(player.lvl / 4));
+    const ps = ensureProgressStats();
+    let bought = false;
+    Object.values(USABLE_ITEMS).forEach(item => {
+        const alreadyBought = globalProgression.burglarDailyPurchasesPerItem[item.id] || 0;
+        const canBuyCount = 5 - alreadyBought;
+        for (let i = 0; i < canBuyCount; i++) {
+            if (globalProgression.gold < item.price) break;
+            globalProgression.gold -= item.price;
+            globalProgression.usableItems[item.id] = (globalProgression.usableItems[item.id] || 0) + 1;
+            let emptySlot = -1;
+            for (let j = 0; j < numUnlocked; j++) {
+                if (player.equippedUsables[j] === null) { emptySlot = j; break; }
+            }
+            if (emptySlot !== -1) player.equippedUsables[emptySlot] = item.id;
+            globalProgression.burglarDailyPurchasesPerItem[item.id] = (globalProgression.burglarDailyPurchasesPerItem[item.id] || 0) + 1;
+            ps.goldSpent += item.price;
+            bought = true;
+        }
+    });
+    if (bought) playSound('win');
     queueSave();
     showBurglar();
 }
