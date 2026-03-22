@@ -1167,7 +1167,19 @@ function showPortal() {
         }
     }
     const apocBtn = document.getElementById('portal-apocalypse-btn');
-    if (apocBtn) apocBtn.style.display = player.lvl >= 500 ? 'flex' : 'none';
+    if (apocBtn) {
+        if (player.lvl < 500) {
+            apocBtn.disabled = true;
+            apocBtn.style.opacity = '0.5';
+            const label = apocBtn.querySelector('.font-bold');
+            if (label) label.innerHTML = '🔒 Apocalypse <span class="text-xs text-gray-400">(Lvl 500)</span>';
+        } else {
+            apocBtn.disabled = false;
+            apocBtn.style.opacity = '';
+            const label = apocBtn.querySelector('.font-bold');
+            if (label) label.innerHTML = 'Apocalypse';
+        }
+    }
     switchScreen('screen-portal');
 }
 
