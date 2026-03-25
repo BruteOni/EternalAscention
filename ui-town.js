@@ -758,7 +758,7 @@ function startInvasion() {
 
 // --- PET BATTLE ---
 function regenPetBattleEnergy() {
-    const MAX_PET_ENERGY = 10;
+    const MAX_PET_ENERGY = 100;
     if (globalProgression.petBattleEnergy === undefined) globalProgression.petBattleEnergy = MAX_PET_ENERGY;
     // Daily reset: if the stored date differs from today, refill energy
     const todayStr = new Date().toDateString();
@@ -791,7 +791,7 @@ function togglePetFavorite(petId) {
 function refreshPetBattleEnergy() {
     if (globalProgression.gold < 5000) return;
     globalProgression.gold -= 5000;
-    globalProgression.petBattleEnergy = 10;
+    globalProgression.petBattleEnergy = 100;
     playSound('win');
     queueSave();
     showPetBattle();
