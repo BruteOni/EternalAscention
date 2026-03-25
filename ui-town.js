@@ -1084,7 +1084,7 @@ function petBattleRoundEnd(playerWon) {
             // Check energy for next round
             regenPetBattleEnergy();
             if((globalProgression.petBattleEnergy || 0) <= 0) {
-                document.getElementById('pb-result-text').innerText = '😴 Out of energy! Recharges in 5 min.';
+                document.getElementById('pb-result-text').innerText = '😴 Out of energy! Resets at midnight or use 🔄 Refresh.';
                 ['attack', 'block', 'counter'].forEach(action => {
                     const btn = document.getElementById(`pb-btn-${action}`);
                     if(btn) { btn.disabled = true; btn.classList.add('opacity-50'); }
