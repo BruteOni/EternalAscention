@@ -2233,9 +2233,15 @@ function checkLevelUp() {
 
 // --- TOWER OF BABEL FLOOR HELPERS ---
 // Returns the absolute floor number for a given tier and floor-within-tier (1-5).
-// Tiers 1-100:  5 floors per tier  (floors    1 –  500)
-// Tiers 101-150: 10 floors per tier  (floors  501 – 1000)
-// Tiers 151+:   20 floors per tier  (floors 1001+)
+// Each tier always contains exactly 5 battles (floorWithinTier 1-5); the tier
+// width (number of floor labels it spans) scales with progression:
+//   Tiers   1-100:  5 floors per tier  (floors    1 –  500)
+//   Tiers 101-150: 10 floors per tier  (floors  501 – 1000)
+//   Tiers  151+:   20 floors per tier  (floors 1001+)
+// The multiplier (1, 2, or 4) maps the 5 internal steps evenly across the
+// wider range so that the boss fight (step 5) always lands on the last floor
+// of the tier — e.g. tier 110 boss = floor 600, tier 150 boss = floor 1000.
+// This guarantees every 100-floor soul-pebble milestone is hit exactly.
 function getTowerCurrentFloor(tier, floorWithinTier) {
     if (tier <= 100) {
         return (tier - 1) * 5 + floorWithinTier;
