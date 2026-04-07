@@ -350,7 +350,7 @@ function generateEnemies() {
         const e = createBaseEnemy();
         
         if (currentMode === 'dungeon' && activeDungeonFloor === 5) {
-            e.lvl = activeDungeonTier * 5; 
+            e.lvl = getTowerCurrentFloor(activeDungeonTier, activeDungeonFloor); 
             const dBoss = BOSS_TEMPLATES['dungeon'][Math.floor(Math.random() * BOSS_TEMPLATES['dungeon'].length)];
             e.name = dBoss.name; e.avatar = dBoss.avatar;
             e.maxHp = Math.max(1, Math.floor(25 * dBoss.hpMult * (1 + (e.lvl - 1) * 0.4) * 3));
@@ -367,7 +367,7 @@ function generateEnemies() {
             e.rarity = 'boss'; e.isBoss = true;
             e.templateMults = { hpMult: bTemplate.hpMult, dmgMult: bTemplate.dmgMult };
         } else {
-            const lvlBase = currentMode === 'dungeon' ? (activeDungeonTier - 1) * 5 + activeDungeonFloor : Math.min(player.lvl, 100); 
+            const lvlBase = currentMode === 'dungeon' ? getTowerCurrentFloor(activeDungeonTier, activeDungeonFloor) : Math.min(player.lvl, 100); 
             e.lvl = Math.max(1, lvlBase + Math.floor(Math.random() * 3) - 1);
             const t = pool[Math.floor(Math.random() * pool.length)];
             e.name = t.name; e.avatar = t.avatar;
@@ -2615,7 +2615,7 @@ function endBattle(playerWon) {
             if(btnHub) { btnHub.innerText = '🌀 Return to Portal'; btnHub.onclick = showPortal; }
         } else if (currentMode === 'dungeon') {
             // Floor rewards: +10 ethereal dust per floor, +20 soul pebbles every 100 floors
-            const currentFloor = (activeDungeonTier - 1) * 5 + activeDungeonFloor;
+            const currentFloor = getTowerCurrentFloor(activeDungeonTier, activeDungeonFloor);
             globalProgression.inventory.ethereal_dust = (globalProgression.inventory.ethereal_dust || 0) + 10;
             rwdCont.innerHTML += `<div class="bg-gray-800 px-3 py-1 rounded border border-yellow-600 text-yellow-300 font-bold shadow-md">✨ +10 Ethereal Dust</div>`;
             if (currentFloor % 100 === 0) {
