@@ -45,7 +45,8 @@ const ENEMY_SKILL_POOL = [
     { id: 'mend', name: 'Mend', cd: 5, desc: 'Increases own damage by 15% for 3 turns' },
     { id: 'boink', name: 'Boink', cd: 5, desc: 'Deals double damage in one hit' },
     { id: 'reflect', name: 'Reflect', cd: 5, desc: 'Reflects 15% of damage taken back for 2-3 turns' },
-    { id: 'silence', name: 'Silenced', cd: 5, desc: 'Silences 1 random hero skill slot (1-5) for 1 turn' }
+    { id: 'silence', name: 'Silenced', cd: 5, desc: 'Silences 1 random hero skill slot (1-5) for 1 turn' },
+    { id: 'debuff', name: 'Dispel', cd: 5, desc: 'Removes 1 random buff from the player' }
 ];
 
 /**
@@ -1937,6 +1938,22 @@ function executeEnemyTurns(enemyIdx, extraTurns = 0) {
         addLog(`${e.name} used Silenced! Skill slot ${slotToSilence + 1} is silenced for 1 turn!`, "text-purple-400 font-bold");
         showFloatText('player-avatar-container', `SILENCED!`, 'text-purple-400');
         e.cooldowns['silence'] = 5;
+    }
+    else if (action === 'debuff') {
+        playSound('hit');
+        triggerAnim(`enemy-card-${enemyIdx}`, 'anim-strike');
+        setTimeout(() => triggerAnim('combat-player-avatar', 'anim-shake'), 150);
+        if (player.activeBuffs && player.activeBuffs.length > 0) {
+            const buffIdx = Math.floor(Math.random() * player.activeBuffs.length);
+            const removedBuff = player.activeBuffs.splice(buffIdx, 1)[0];
+            addLog(`${e.name} used Dispel! Removed your ${removedBuff.type} buff!`, "text-purple-400 font-bold");
+            showFloatText('player-avatar-container', `DISPELLED!`, 'text-purple-400');
+        } else {
+            addLog(`${e.name} used Dispel, but you had no buffs!`, "text-gray-500");
+        }
+        const dmg = Math.floor(e.baseDmg * 0.5);
+        dealDamageToPlayer(dmg, e);
+        e.cooldowns['debuff'] = 5;
     }
     else { // hit
         playSound('hit'); triggerAnim(`enemy-card-${enemyIdx}`, 'anim-strike'); setTimeout(() => triggerAnim('combat-player-avatar', 'anim-shake'), 150);
