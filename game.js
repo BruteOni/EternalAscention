@@ -2231,6 +2231,32 @@ function checkLevelUp() {
     }
 }
 
+// --- TOWER OF BABEL FLOOR HELPERS ---
+// Returns the absolute floor number for a given tier and floor-within-tier (1-5).
+// Tiers 1-100:  5 floors per tier  (floors    1 –  500)
+// Tiers 101-150: 10 floors per tier  (floors  501 – 1000)
+// Tiers 151+:   20 floors per tier  (floors 1001+)
+function getTowerCurrentFloor(tier, floorWithinTier) {
+    if (tier <= 100) {
+        return (tier - 1) * 5 + floorWithinTier;
+    } else if (tier <= 150) {
+        return 500 + (tier - 101) * 10 + floorWithinTier * 2;
+    } else {
+        return 1000 + (tier - 151) * 20 + floorWithinTier * 4;
+    }
+}
+
+// Returns the display floor range {start, end} for a given tier.
+function getTowerFloorRange(tier) {
+    if (tier <= 100) {
+        return { start: (tier - 1) * 5 + 1, end: tier * 5 };
+    } else if (tier <= 150) {
+        return { start: 500 + (tier - 101) * 10 + 1, end: 500 + (tier - 100) * 10 };
+    } else {
+        return { start: 1000 + (tier - 151) * 20 + 1, end: 1000 + (tier - 150) * 20 };
+    }
+}
+
 window.confirmNewGame = confirmNewGame;
 window.closeConfirmNewGame = closeConfirmNewGame;
 window.confirmNewGameYes = confirmNewGameYes;
